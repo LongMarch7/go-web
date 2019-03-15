@@ -1,7 +1,7 @@
 package main
-import {
+import (
   "flag" 
-}
+)
 fun main(){
   flag.Parse()
 }
