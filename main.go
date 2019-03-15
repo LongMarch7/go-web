@@ -2,6 +2,6 @@ package main
 import (
   "flag" 
 )
-fun main(){
+func main(){
   flag.Parse()
 }
