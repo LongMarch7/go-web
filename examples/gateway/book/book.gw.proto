@@ -36,4 +36,16 @@ service BookService {
              get: "/gateway/booklist"
          };
     }
+    rpc PostBookInfo (BookInfoParams) returns (BookInfo) {
+        option (google.api.http) = {
+             post: "/gateway/bookinfo"
+             body: "*"
+         };
+    }
+    rpc PostBookList (BookListParams) returns (BookList) {
+        option (google.api.http) = {
+             post: "/gateway/booklist"
+             body: "*"
+         };
+    }
 }

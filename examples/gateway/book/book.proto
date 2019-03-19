@@ -26,4 +26,6 @@ message BookList {
 service BookService {
     rpc GetBookInfo (BookInfoParams) returns (BookInfo) {}
     rpc GetBookList (BookListParams) returns (BookList) {}
+    rpc PostBookInfo (BookInfoParams) returns (BookInfo) {}
+    rpc PostBookList (BookListParams) returns (BookList) {}
 }

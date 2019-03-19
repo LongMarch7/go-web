@@ -2,6 +2,7 @@ package main
 
 import (
     "context"
+    "fmt"
     grpc_transport "github.com/go-kit/kit/transport/grpc"
     "github.com/go-kit/kit/endpoint"
     "github.com/LongMarch7/go-web/examples/gateway/book"
@@ -40,6 +41,9 @@ func (s *BookServer) GetBookList(ctx context.Context, in *book.BookListParams) (
 func makeGetBookListEndpoint() endpoint.Endpoint {
     return func(ctx context.Context, request interface{}) (interface{}, error) {
         //请求列表时返回 书籍列表
+        req := request.(*book.BookListParams)
+        fmt.Println("limit:",req.Limit)
+        fmt.Println("page:",req.Page)
         bl := new(book.BookList)
         bl.BookList = append(bl.BookList, &book.BookInfo{BookId:1,BookName:"21天精通php"})
         bl.BookList = append(bl.BookList, &book.BookInfo{BookId:2,BookName:"21天精通java"})
@@ -52,6 +56,7 @@ func makeGetBookInfoEndpoint() endpoint.Endpoint {
     return func(ctx context.Context, request interface{}) (interface{}, error) {
         //请求详情时返回 书籍信息
         req := request.(*book.BookInfoParams)
+        fmt.Println("bookID:",req.BookId)
         b := new(book.BookInfo)
         b.BookId = req.BookId
         b.BookName = "21天精通php"
