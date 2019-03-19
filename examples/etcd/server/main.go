@@ -4,7 +4,7 @@ import (
     "context"
     grpc_transport "github.com/go-kit/kit/transport/grpc"
     "github.com/go-kit/kit/endpoint"
-    "github.com/go-kit/kit/examples/etcd/book"
+    "github.com/LongMarch7/go-web/examples/etcd/book"
     "google.golang.org/grpc"
     "net"
     "github.com/go-kit/kit/sd/etcdv3"

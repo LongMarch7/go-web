@@ -10,7 +10,7 @@ import (
     "github.com/go-kit/kit/sd/etcdv3"
     "github.com/go-kit/kit/sd/lb"
     "google.golang.org/grpc"
-    "github.com/go-kit/kit/examples/etcd/book"
+    "github.com/LongMarch7/go-web/examples/etcd/book"
     "io"
     "time"
 )
