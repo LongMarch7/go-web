@@ -82,7 +82,7 @@ func main() {
         key        = prefix
         ctx        = context.Background()
         //服务监听地址
-        serviceAddress = ":12306"
+        serviceAddress = ":0"
     )
 
     //etcd的连接参数

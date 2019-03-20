@@ -59,11 +59,6 @@ func main() {
     //if _, err = reqEndPoint(ctx, req); err != nil {
     //    panic(err)
     //}
-    defer func() {
-        if err := recover(); err != nil {
-            fmt.Println(err)
-        }
-    }()
     for i := 1; i <= 1000; i++ {
         fmt.Println("请求count: ",i)
         if _, err = reqEndPoint(ctx, req); err != nil {
