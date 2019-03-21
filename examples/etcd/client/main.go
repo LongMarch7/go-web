@@ -7,7 +7,7 @@ import (
     "github.com/go-kit/kit/endpoint"
     "github.com/go-kit/kit/log"
     "github.com/go-kit/kit/sd"
-    "github.com/go-kit/kit/sd/etcdv3"
+    "github.com/LongMarch7/go-web/toolkit/sd/etcdv3"
     "github.com/go-kit/kit/sd/lb"
     "google.golang.org/grpc"
     "github.com/LongMarch7/go-web/examples/etcd/book"

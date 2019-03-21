@@ -5,10 +5,10 @@ import (
     "fmt"
     grpc_transport "github.com/go-kit/kit/transport/grpc"
     "github.com/go-kit/kit/endpoint"
-    "github.com/LongMarch7/go-web/examples/etcd/book"
+    "github.com/LongMarch7/go-web/examples/gateway/book"
     "google.golang.org/grpc"
     "net"
-    "github.com/LongMarch7/go-web/toolkit/sd/etcdv3"
+    "github.com/go-kit/kit/sd/etcdv3"
     "github.com/go-kit/kit/log"
     "strconv"
     "time"
@@ -41,7 +41,9 @@ func (s *BookServer) GetBookList(ctx context.Context, in *book.BookListParams) (
 func makeGetBookListEndpoint() endpoint.Endpoint {
     return func(ctx context.Context, request interface{}) (interface{}, error) {
         //请求列表时返回 书籍列表
-        fmt.Println("BookList")
+        req := request.(*book.BookListParams)
+        fmt.Println("limit:",req.Limit)
+        fmt.Println("page:",req.Page)
         bl := new(book.BookList)
         bl.BookList = append(bl.BookList, &book.BookInfo{BookId:1,BookName:"21天精通php"})
         bl.BookList = append(bl.BookList, &book.BookInfo{BookId:2,BookName:"21天精通java"})
@@ -53,8 +55,8 @@ func makeGetBookListEndpoint() endpoint.Endpoint {
 func makeGetBookInfoEndpoint() endpoint.Endpoint {
     return func(ctx context.Context, request interface{}) (interface{}, error) {
         //请求详情时返回 书籍信息
-        fmt.Println("BookInfo")
         req := request.(*book.BookInfoParams)
+        fmt.Println("bookID:",req.BookId)
         b := new(book.BookInfo)
         b.BookId = req.BookId
         b.BookName = "21天精通php"
@@ -80,7 +82,7 @@ func main() {
         key        = prefix
         ctx        = context.Background()
         //服务监听地址
-        serviceAddress = ":12306"
+        serviceAddress = ":0"
     )
 
     //etcd的连接参数
