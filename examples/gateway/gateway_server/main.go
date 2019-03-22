@@ -2,13 +2,14 @@ package main
 
 import (
     "context"
+    "flag"
     "fmt"
     grpc_transport "github.com/go-kit/kit/transport/grpc"
     "github.com/go-kit/kit/endpoint"
     "github.com/LongMarch7/go-web/examples/gateway/book"
     "google.golang.org/grpc"
     "net"
-    "github.com/go-kit/kit/sd/etcdv3"
+    "github.com/LongMarch7/go-web/util/sd/etcdv3"
     "github.com/go-kit/kit/log"
     "strconv"
     "time"
@@ -73,17 +74,12 @@ func encodeResponse(_ context.Context, rsp interface{}) (interface{}, error) {
 }
 
 func main() {
-    var (
-        //etcd服务地址
-        etcdServer = "127.0.0.1:2379"
-        //服务的信息目录
-        prefix     = "/services/book/"
-        //服务实例注册的路径
-        key        = prefix
-        ctx        = context.Background()
-        //服务监听地址
-        serviceAddress = ":0"
-    )
+    etcdServer := flag.String("e","127.0.0.1:2379","etcd service addr")
+    prefix := flag.String("p","/services/book/","prefix value")
+    serviceAddress := flag.String("s",":0","server addr")
+    flag.Parse()
+    key := *prefix
+    ctx := context.Background()
 
     //etcd的连接参数
     options := etcdv3.ClientOptions{
@@ -91,12 +87,12 @@ func main() {
         DialKeepAlive: time.Second * 3,
     }
     //创建etcd连接
-    client, err := etcdv3.NewClient(ctx, []string{etcdServer}, options)
+    client, err := etcdv3.NewClient(ctx, []string{*etcdServer}, options)
     if err != nil {
         panic(err)
     }
 
-    ls, _ := net.Listen("tcp", serviceAddress)
+    ls, _ := net.Listen("tcp", *serviceAddress)
 
     port := ls.Addr().(*net.TCPAddr).Port
     instance := ":" + strconv.Itoa(port)

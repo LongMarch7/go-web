@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/LongMarch7/go-web/transport/client"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -23,22 +24,6 @@ import (
 	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/status"
 )
-
-type GatewayHandler func(conn *grpc.ClientConn)
-type BaseGatewayManager struct {
-	Handler    GatewayHandler
-	W          http.ResponseWriter
-	Req        *http.Request
-	PathParams map[string]string
-}
-
-func newManager(W http.ResponseWriter, Req *http.Request, PathParams map[string]string) *BaseGatewayManager {
-	return &BaseGatewayManager{
-		W:          W,
-		Req:        Req,
-		PathParams: PathParams,
-	}
-}
 
 var _ codes.Code
 var _ io.Reader
@@ -88,7 +73,7 @@ func request_BookService_GetBookList_0(ctx context.Context, marshaler runtime.Ma
 // "BookServiceClient" to call the correct interceptors.
 type RequestFunc func(context.Context, runtime.Marshaler, BookServiceClient, *http.Request, map[string]string) (proto.Message, runtime.ServerMetadata, error)
 
-func RegisterBookServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, endpoint endpoint.Endpoint) error {
+func RegisterBookServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, endpoint endpoint.Endpoint, extend interface{}) error {
 	var commonFunc = func(w http.ResponseWriter, req *http.Request, pathParams map[string]string, request RequestFunc, conn *grpc.ClientConn) (runtime.Marshaler, proto.Message, error) {
 		var client = NewBookServiceClient(conn)
 		ctx, cancel := context.WithCancel(req.Context())
@@ -109,7 +94,7 @@ func RegisterBookServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 	}
 
 	mux.Handle("GET", pattern_BookService_GetBookInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		manager := newManager(w, req, pathParams)
+		manager := client.NewManager(extend)
 		manager.Handler = func(conn *grpc.ClientConn) {
 			outboundMarshaler, resp, err := commonFunc(w, req, pathParams, request_BookService_GetBookInfo_0, conn)
 			if err != nil {
@@ -123,7 +108,7 @@ func RegisterBookServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 	})
 
 	mux.Handle("GET", pattern_BookService_GetBookList_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		manager := newManager(w, req, pathParams)
+		manager := client.NewManager(extend)
 		manager.Handler = func(conn *grpc.ClientConn) {
 			outboundMarshaler, resp, err := commonFunc(w, req, pathParams, request_BookService_GetBookList_0, conn)
 			if err != nil {

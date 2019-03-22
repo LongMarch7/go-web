@@ -2,9 +2,10 @@ package main
 
 import (
     "context"
+    "flag"
     "fmt"
     "github.com/go-kit/kit/sd"
-    "github.com/go-kit/kit/sd/etcdv3"
+    "github.com/LongMarch7/go-web/util/sd/etcdv3"
     "github.com/go-kit/kit/sd/lb"
     "google.golang.org/grpc"
     "io"
@@ -14,6 +15,7 @@ import (
     "github.com/go-kit/kit/endpoint"
     "github.com/grpc-ecosystem/grpc-gateway/runtime"
     "github.com/LongMarch7/go-web/examples/gateway/book"
+    "github.com/LongMarch7/go-web/transport/client"
     //"github.com/daviddengcn/go-villa"
 )
 
@@ -44,25 +46,23 @@ import (
 //    }
 //}
 func main() {
-    var (
-        //注册中心地址
-        etcdServer = "127.0.0.1:2379"
-        //监听的服务前缀
-        prefix     = "/services/book/"
-        ctx        = context.Background()
-    )
+    etcdServer := flag.String("e","127.0.0.1:2379","etcd service addr")
+    prefix := flag.String("p","/services/book/","prefix value")
+    flag.Parse()
+    ctx := context.Background()
+
     options := etcdv3.ClientOptions{
         DialTimeout: time.Second * 3,
         DialKeepAlive: time.Second * 3,
     }
     //连接注册中心
-    client, err := etcdv3.NewClient(ctx, []string{etcdServer}, options)
+    client, err := etcdv3.NewClient(ctx, []string{*etcdServer}, options)
     if err != nil {
         panic(err)
     }
     logger := log.NewNopLogger()
     //创建实例管理器, 此管理器会Watch监听etc中prefix的目录变化更新缓存的服务实例数据
-    instancer, err := etcdv3.NewInstancer(client, prefix, logger)
+    instancer, err := etcdv3.NewInstancer(client, *prefix, logger)
     if err != nil {
         panic(err)
     }
@@ -86,7 +86,7 @@ func main() {
 
     mux := runtime.NewServeMux()
 
-    err = book.RegisterBookServiceHandlerClient(ctx, mux, reqEndPoint)
+    err = book.RegisterBookServiceHandlerClient(ctx, mux, reqEndPoint, nil)
     if err != nil {
         panic(err)
     }
@@ -98,7 +98,7 @@ func main() {
 func reqFactory(instanceAddr string) (endpoint.Endpoint, io.Closer, error) {
     return func(ctx context.Context, request interface{}) (interface{}, error) {
         fmt.Println("请求服务: ", instanceAddr)
-        manage :=request.(*book.BaseGatewayManager)
+        manage :=request.(*client.BaseGatewayManager)
         conn, err := grpc.Dial(instanceAddr, grpc.WithInsecure())
         if err != nil {
             fmt.Println(err)

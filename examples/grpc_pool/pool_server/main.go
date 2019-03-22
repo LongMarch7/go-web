@@ -6,7 +6,7 @@ import (
     "fmt"
     grpc_transport "github.com/go-kit/kit/transport/grpc"
     "github.com/go-kit/kit/endpoint"
-    "github.com/LongMarch7/go-web/examples/etcd/book"
+    "github.com/LongMarch7/go-web/examples/gateway/book"
     "google.golang.org/grpc"
     "net"
     "github.com/LongMarch7/go-web/util/sd/etcdv3"
@@ -42,7 +42,9 @@ func (s *BookServer) GetBookList(ctx context.Context, in *book.BookListParams) (
 func makeGetBookListEndpoint() endpoint.Endpoint {
     return func(ctx context.Context, request interface{}) (interface{}, error) {
         //请求列表时返回 书籍列表
-        fmt.Println("BookList")
+        req := request.(*book.BookListParams)
+        fmt.Println("limit:",req.Limit)
+        fmt.Println("page:",req.Page)
         bl := new(book.BookList)
         bl.BookList = append(bl.BookList, &book.BookInfo{BookId:1,BookName:"21天精通php"})
         bl.BookList = append(bl.BookList, &book.BookInfo{BookId:2,BookName:"21天精通java"})
@@ -54,8 +56,8 @@ func makeGetBookListEndpoint() endpoint.Endpoint {
 func makeGetBookInfoEndpoint() endpoint.Endpoint {
     return func(ctx context.Context, request interface{}) (interface{}, error) {
         //请求详情时返回 书籍信息
-        fmt.Println("BookInfo")
         req := request.(*book.BookInfoParams)
+        fmt.Println("bookID:",req.BookId)
         b := new(book.BookInfo)
         b.BookId = req.BookId
         b.BookName = "21天精通php"
@@ -75,6 +77,7 @@ func main() {
     etcdServer := flag.String("e","127.0.0.1:2379","etcd service addr")
     prefix := flag.String("p","/services/book/","prefix value")
     serviceAddress := flag.String("s",":0","server addr")
+    threadMax := flag.String("c","50","server thread pool max thread count")
     flag.Parse()
     key := *prefix
     ctx := context.Background()
@@ -95,14 +98,14 @@ func main() {
     instance := ":" + strconv.Itoa(port)
     // 创建注册器
     registrar := etcdv3.NewRegistrar(client, etcdv3.Service{
-        Key:   key+instance,
+        Key:   key + instance,
         Value: instance,
     }, log.NewNopLogger())
 
     // 注册器启动注册
     registrar.Register()
 
-    client.SetKV("book","nice")
+    client.SetKV(*prefix + "thread",*threadMax)
     bookServer := new(BookServer)
     bookListHandler := grpc_transport.NewServer(
         makeGetBookListEndpoint(),

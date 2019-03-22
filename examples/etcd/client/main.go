@@ -3,11 +3,12 @@ package main
 import (
     "context"
     "errors"
+    "flag"
     "fmt"
     "github.com/go-kit/kit/endpoint"
     "github.com/go-kit/kit/log"
     "github.com/go-kit/kit/sd"
-    "github.com/LongMarch7/go-web/toolkit/sd/etcdv3"
+    "github.com/LongMarch7/go-web/util/sd/etcdv3"
     "github.com/go-kit/kit/sd/lb"
     "google.golang.org/grpc"
     "github.com/LongMarch7/go-web/examples/etcd/book"
@@ -16,26 +17,24 @@ import (
 )
 
 func main() {
+    etcdServer := flag.String("e","127.0.0.1:2379","etcd service addr")
+    prefix := flag.String("p","/services/book/","prefix value")
+    flag.Parse()
+    ctx := context.Background()
 
-    var (
-        //注册中心地址
-        etcdServer = "127.0.0.1:2379"
-        //监听的服务前缀
-        prefix     = "/services/book/"
-        ctx        = context.Background()
-    )
     options := etcdv3.ClientOptions{
         DialTimeout: time.Second * 3,
         DialKeepAlive: time.Second * 3,
     }
     //连接注册中心
-    client, err := etcdv3.NewClient(ctx, []string{etcdServer}, options)
+    client, err := etcdv3.NewClient(ctx, []string{*etcdServer}, options)
     if err != nil {
         panic(err)
     }
+
     logger := log.NewNopLogger()
     //创建实例管理器, 此管理器会Watch监听etc中prefix的目录变化更新缓存的服务实例数据
-    instancer, err := etcdv3.NewInstancer(client, prefix, logger)
+    instancer, err := etcdv3.NewInstancer(client, *prefix, logger)
     if err != nil {
         panic(err)
     }
@@ -43,7 +42,7 @@ func main() {
     endpointer := sd.NewEndpointer(instancer, reqFactory, logger)
     //创建负载均衡器
     balancer := lb.NewRoundRobin(endpointer)
-
+    fmt.Printf("book = %s", client.GetKV("book"))
     /**
     我们可以通过负载均衡器直接获取请求的endPoint，发起请求
     reqEndPoint,_ := balancer.Endpoint()
@@ -59,7 +58,7 @@ func main() {
     //if _, err = reqEndPoint(ctx, req); err != nil {
     //    panic(err)
     //}
-    for i := 1; i <= 1000; i++ {
+    for i := 1; i <= 10; i++ {
         fmt.Println("请求count: ",i)
         if _, err = reqEndPoint(ctx, req); err != nil {
             panic(err)
