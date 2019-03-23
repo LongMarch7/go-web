@@ -2,6 +2,7 @@ package server
 import (
     "context"
     "time"
+    "google.golang.org/grpc"
 )
 
 func EtcdServer(etcd string) SOption {
@@ -49,5 +50,19 @@ func MaxThreadCount(maxThreadCount  string) SOption {
 func NetType(netType  string) SOption {
     return func(o *ServerOpt) {
         o.NetType = netType
+    }
+}
+
+type Init func() interface {}
+func ServiceInit(init Init) SOption {
+    return func(o *ServerOpt) {
+        o.ServiceStruct = init()
+    }
+}
+
+type RegisterServer func(*grpc.Server, interface{})
+func RegisterServiceFunc(register RegisterServer) SOption {
+    return func(o *ServerOpt) {
+        o.RegisterServerFunc = register
     }
 }

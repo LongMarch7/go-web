@@ -7,7 +7,6 @@ import (
     grpc_transport "github.com/go-kit/kit/transport/grpc"
     "github.com/go-kit/kit/endpoint"
     "github.com/LongMarch7/go-web/examples/grpc-pool/book"
-    "google.golang.org/grpc"
     "github.com/LongMarch7/go-web/transport/server"
 )
 
@@ -38,6 +37,24 @@ func makeGetBookInfoEndpoint() endpoint.Endpoint {
     }
 }
 
+func Init() interface {}{
+    bookServer := new(book.DefaultBookServiceServer)
+    bookListHandler := grpc_transport.NewServer(
+        makeGetBookListEndpoint(),
+        server.DefaultdecodeRequest,
+        server.DefaultencodeResponse,
+    )
+    bookServer.GetBookListHandler = bookListHandler
+
+    bookInfoHandler := grpc_transport.NewServer(
+        makeGetBookInfoEndpoint(),
+        server.DefaultdecodeRequest,
+        server.DefaultencodeResponse,
+    )
+    bookServer.GetBookInfoHandler = bookInfoHandler
+    return bookServer
+}
+
 
 func main() {
     etcdServer := flag.String("e","127.0.0.1:2379","etcd service addr")
@@ -53,24 +70,8 @@ func main() {
             server.ServerAddr(*serviceAddress),
             server.Ctx(ctx),
             server.MaxThreadCount(*threadMax),
+            server.ServiceInit(Init),                            //must set
+            server.RegisterServiceFunc(book.RegisterBookServiceServer),  //must set
         )
-
-    bookServer := new(book.DefaultBookServiceServer)
-    bookListHandler := grpc_transport.NewServer(
-        makeGetBookListEndpoint(),
-        server.DefaultdecodeRequest,
-        server.DefaultencodeResponse,
-    )
-    bookServer.GetBookListHandler = bookListHandler
-
-    bookInfoHandler := grpc_transport.NewServer(
-        makeGetBookInfoEndpoint(),
-        server.DefaultdecodeRequest,
-        server.DefaultencodeResponse,
-    )
-    bookServer.GetBookInfoHandler = bookInfoHandler
-
-    gs := grpc.NewServer(grpc.UnaryInterceptor(grpc_transport.Interceptor))
-    book.RegisterBookServiceServer(gs, bookServer)
-    gs.Serve(server1.GetListener())
+    server1.Run()
 }

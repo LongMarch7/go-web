@@ -20,9 +20,9 @@ func main() {
     client1 := client.NewClient(
         client.EtcdServer(*etcdServer),
         client.Prefix(*prefix),
-        client.Mux(mux),
+        client.Mux(mux),                                               //must set
         client.Ctx(ctx),
-        client.RegisterGrpc(book.RegisterBookServiceHandlerClient),
+        client.RegisterGrpc(book.RegisterBookServiceHandlerClient),   //must se
         client.RetryCount(3),
         client.RetryTime(time.Second * 3),
     )

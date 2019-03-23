@@ -16,7 +16,7 @@ import (
     "github.com/grpc-ecosystem/grpc-gateway/runtime"
     "github.com/LongMarch7/go-web/examples/gateway/book"
     "github.com/LongMarch7/go-web/transport/client"
-    //"github.com/daviddengcn/go-villa"
+    "github.com/LongMarch7/go-web/transport/pool"
 )
 
 //
@@ -62,7 +62,7 @@ func main() {
     }
     logger := log.NewNopLogger()
     //创建实例管理器, 此管理器会Watch监听etc中prefix的目录变化更新缓存的服务实例数据
-    instancer, err := etcdv3.NewInstancer(client, *prefix, logger)
+    instancer, err := etcdv3.NewInstancer(client, *prefix, logger, pool.Update)
     if err != nil {
         panic(err)
     }

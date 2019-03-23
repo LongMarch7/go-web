@@ -1,34 +1,40 @@
 package server
 
 import (
+    "errors"
+    "fmt"
+    "google.golang.org/grpc"
     "net"
     "strconv"
     "time"
     "context"
     "github.com/LongMarch7/go-web/util/sd/etcdv3"
     "github.com/go-kit/kit/log"
+    grpc_transport "github.com/go-kit/kit/transport/grpc"
 )
 
 
 type IServer interface {
     init()
-    GetListener() net.Listener
+    Run()
 }
 
 type ServerOpt struct {
-    EtcdServer      string
-    Prefix          string
-    ServerAddr        string
-    Ctx             context.Context
-    DialTimeout     time.Duration
-    DialKeepAlive   time.Duration
-    NetType         string
-    MaxThreadCount  string
+    EtcdServer           string
+    Prefix               string
+    ServerAddr           string
+    Ctx                  context.Context
+    DialTimeout          time.Duration
+    DialKeepAlive        time.Duration
+    NetType              string
+    MaxThreadCount       string
+    RegisterServerFunc   RegisterServer
+    ServiceStruct        interface{}
 }
 
 type Server struct {
     opts ServerOpt
-    listenConnector net.Listener
+    listenConnector       net.Listener
 }
 
 type SOption func(o *ServerOpt)
@@ -54,6 +60,8 @@ func newOptions(opts ...SOption) ServerOpt {
         DialKeepAlive: time.Second * 3,
         MaxThreadCount: "1024*1024",
         NetType: "tcp",
+        RegisterServerFunc: nil,
+        ServiceStruct: nil,
     }
 
     for _, o := range opts {
@@ -90,8 +98,13 @@ func (s *Server)init(){
     client.SetKV(s.opts.Prefix + "thread", s.opts.MaxThreadCount)
 }
 
-func (s *Server)GetListener() net.Listener{
-    return s.listenConnector
+func (s *Server)Run(){
+    if s.opts.RegisterServerFunc == nil || s.opts.ServiceStruct == nil {
+        panic(errors.New("RegisterServerFunc and ServiceStruct must set"))
+    }
+    gs := grpc.NewServer(grpc.UnaryInterceptor(grpc_transport.Interceptor))
+    s.opts.RegisterServerFunc(gs, s.opts.ServiceStruct)
+    gs.Serve(s.listenConnector)
 }
 
 func DefaultdecodeRequest(_ context.Context, req interface{}) (interface{}, error) {

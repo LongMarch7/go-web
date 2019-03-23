@@ -229,8 +229,8 @@ func (g *grpc) generateService(file *generator.FileDescriptor, service *pb.Servi
 	if deprecated {
 		g.P(deprecationComment)
 	}
-	g.P("func Register", servName, "Server(s *", grpcPkg, ".Server, srv ", serverType, ") {")
-	g.P("s.RegisterService(&", serviceDescVar, `, srv)`)
+	g.P("func Register", servName, "Server(s *", grpcPkg, ".Server, srv interface{}", ") {")
+	g.P("s.RegisterService(&", serviceDescVar, `, srv.(`,serverType,"))")
 	g.P("}")
 	g.P()
 
