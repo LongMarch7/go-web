@@ -2,13 +2,11 @@ package client
 
 import (
     "context"
-    "errors"
     "fmt"
     "github.com/go-kit/kit/sd"
     "github.com/LongMarch7/go-web/util/sd/etcdv3"
     "github.com/go-kit/kit/sd/lb"
     "google.golang.org/grpc"
-    "io"
     "time"
     "github.com/go-kit/kit/log"
     "github.com/go-kit/kit/endpoint"
@@ -148,49 +146,4 @@ func (c *Client)init(){
 func (c *Client)DeRegister(){
     c.cancel()
     pool.Destroy()
-}
-
-func getConnectFromPool(addr string, p pool.Pool, opt grpc.DialOption) (*grpc.ClientConn, error){
-    var err error = nil
-    conn, ok, _ := p.Queue.Get()
-    if !ok {
-        time.Sleep(time.Microsecond * 100)
-        conn, ok, _ =  p.Queue.Get()
-    }
-    if !ok{
-        conn, err = grpc.Dial(addr, opt)
-    }
-    return conn.(*grpc.ClientConn), err
-}
-
-func putConnectToPool(conn *grpc.ClientConn, p pool.Pool) {
-    ok, _ := p.Queue.Put(conn)
-    if !ok {
-        time.Sleep(time.Microsecond)
-        ok, _ =  p.Queue.Put(&conn)
-    }
-    if !ok {
-        conn.Close()
-        conn = nil
-    }
-}
-
-func defaultReqFactory(instanceAddr string) (endpoint.Endpoint, io.Closer, error) {
-    return func(ctx context.Context, request interface{}) (interface{}, error) {
-        base :=request.(*BaseGatewayManager)
-        poolManage,ok := pool.GetConnect(instanceAddr)
-        if ! ok {
-            return nil,errors.New("poolManage not found")
-        }
-
-        conn, err := getConnectFromPool(instanceAddr, poolManage, base.manager.(*GrpcPoolManager).Opt)
-        if err != nil {
-            return nil,err
-        }
-        defer func() {
-            putConnectToPool(conn, poolManage)
-        }()
-        base.Handler(conn)
-        return nil,nil
-    },nil,nil
 }

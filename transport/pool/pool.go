@@ -5,11 +5,18 @@ import (
     sq "github.com/LongMarch7/go-web/util/queue"
     "google.golang.org/grpc"
     "sync"
+    "time"
 )
 
 type Pool struct {
-    Queue      *sq.EsQueue
-    prefix     string
+    Queue                *sq.EsQueue
+    prefix               string
+}
+
+type ConnectManager struct {
+    Conn                 *grpc.ClientConn
+    InvalidateDeadline   time.Time
+    Timeout              time.Duration
 }
 
 var poolManager = make( map[string] Pool, 128 )

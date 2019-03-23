@@ -53,8 +53,7 @@ func NetType(netType  string) SOption {
     }
 }
 
-type Init func() interface {}
-func ServiceInit(init Init) SOption {
+func ServiceInit(init  func() interface {}) SOption {
     return func(o *ServerOpt) {
         o.ServiceStruct = init()
     }
