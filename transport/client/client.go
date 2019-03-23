@@ -2,36 +2,42 @@ package client
 
 import (
     "context"
+    "errors"
     "fmt"
     "github.com/go-kit/kit/sd"
     "github.com/LongMarch7/go-web/util/sd/etcdv3"
     "github.com/go-kit/kit/sd/lb"
     "google.golang.org/grpc"
     "io"
-    "strconv"
     "time"
     "github.com/go-kit/kit/log"
     "github.com/go-kit/kit/endpoint"
     "github.com/grpc-ecosystem/grpc-gateway/runtime"
+    "github.com/LongMarch7/go-web/transport/pool"
 )
 
 type GatewayHandler func(conn *grpc.ClientConn)
 type BaseGatewayManager struct {
     Handler GatewayHandler
-    Extend  interface{}
+    manager interface{}
 }
 
-func NewManager(extend interface{}) *BaseGatewayManager {
+func NewManager(manager interface{}) *BaseGatewayManager {
     return &BaseGatewayManager{
-        Extend: extend,
+        manager: manager,
     }
 }
 
+type GrpcPoolManager struct{
+    Opt       grpc.DialOption
+    Extend    interface{}
+}
 type RegisterHandlerClient func( context.Context, *runtime.ServeMux, endpoint.Endpoint, interface{}) error
-type Client interface {
-    Register(opt ClientOpt, register RegisterHandlerClient)
+type IClient interface {
+    init()
     DeRegister()
 }
+
 type ClientOpt struct {
     EtcdServer      string
     Prefix          string
@@ -39,51 +45,78 @@ type ClientOpt struct {
     Ctx             context.Context
     DialTimeout     time.Duration
     DialKeepAlive   time.Duration
-    Cancel          context.CancelFunc
     RegisterGrpc    RegisterHandlerClient
     Factory         sd.Factory
     RetryTime       time.Duration
     RetryCount      int
-    MaxThreadCount  int
+    Extend          interface{}
+    Manager         interface{}
 }
 
-func NewClientOpt(etcd string, prefix string , mux *runtime.ServeMux, ctx context.Context, handler RegisterHandlerClient) *ClientOpt{
-    return &ClientOpt{
-        EtcdServer: etcd,
-        Prefix: prefix,
-        Mux: mux,
-        Ctx: ctx,
+type Client struct {
+    opts      ClientOpt
+    cancel    context.CancelFunc
+}
+
+
+type COption func(o *ClientOpt)
+func NewClient(opts ...COption) IClient {
+    return newClient(opts...)
+}
+
+func newClient(opts ...COption) IClient {
+    options := newOptions(opts...)
+    c := &Client{
+        opts: options,
+    }
+    c.init()
+    return c
+}
+func newOptions(opts ...COption) ClientOpt {
+    opt := ClientOpt{
+        EtcdServer: "127.0.0.1:2379",
+        Prefix: "/services/book/",
+        Ctx: context.Background(),
+        Mux: nil,
         DialTimeout: time.Second * 3,
         DialKeepAlive: time.Second * 3,
         Factory: defaultReqFactory,
         RetryTime: time.Second * 3,
         RetryCount: 3,
-        RegisterGrpc: handler,
+        RegisterGrpc: nil,
+        Extend: nil,
+        Manager: nil,
     }
+
+    for _, o := range opts {
+        o(&opt)
+    }
+    return opt
 }
 
-func (c *ClientOpt)Register(){
+func (c *Client)init(){
+    if c.opts.Mux == nil || c.opts.RegisterGrpc == nil{
+        fmt.Println("mux and grpc need set")
+        return
+    }
     options := etcdv3.ClientOptions{
-        DialTimeout: c.DialTimeout,
-        DialKeepAlive: c.DialKeepAlive,
+        DialTimeout: c.opts.DialTimeout,
+        DialKeepAlive: c.opts.DialKeepAlive,
     }
     //连接注册中心
-    client, err := etcdv3.NewClient(c.Ctx, []string{c.EtcdServer}, options)
+    client, err := etcdv3.NewClient(c.opts.Ctx, []string{c.opts.EtcdServer}, options)
     if err != nil {
         panic(err)
     }
     logger := log.NewNopLogger()
     //创建实例管理器, 此管理器会Watch监听etc中prefix的目录变化更新缓存的服务实例数据
-    instancer, err := etcdv3.NewInstancer(client, c.Prefix, logger)
+    instancer, err := etcdv3.NewInstancer(client, c.opts.Prefix, logger, pool.Update)
     if err != nil {
         panic(err)
     }
-    c.MaxThreadCount, _ =  strconv.Atoi(string(client.GetKV(c.Prefix + "thread")))
-    if c.MaxThreadCount <= 0 {
-        c.MaxThreadCount = 50
-    }
+
     //创建端点管理器， 此管理器根据Factory和监听的到实例创建endPoint并订阅instancer的变化动态更新Factory创建的endPoint
-    endpointer := sd.NewEndpointer(instancer, c.Factory, logger)
+    endpointer := sd.NewEndpointer(instancer, c.opts.Factory, logger)
     //创建负载均衡器
     balancer := lb.NewRoundRobin(endpointer)
 
@@ -95,34 +128,69 @@ func (c *ClientOpt)Register(){
     /**
     也可以通过retry定义尝试次数进行请求
     */
-    reqEndPoint := lb.Retry(c.RetryCount, c.RetryTime, balancer)
+    reqEndPoint := lb.Retry(c.opts.RetryCount, c.opts.RetryTime, balancer)
 
-    ctx, cancel := context.WithCancel(c.Ctx)
-    c.Cancel = cancel
+    ctx, cancel := context.WithCancel(c.opts.Ctx)
+    c.cancel = cancel
 
-    err = c.RegisterGrpc(ctx, c.Mux, reqEndPoint, nil)
+    if c.opts.Manager == nil {
+        c.opts.Manager = &GrpcPoolManager{
+            Opt: grpc.WithInsecure(),
+            Extend: c.opts.Extend,
+        }
+    }
+    err = c.opts.RegisterGrpc(ctx, c.opts.Mux, reqEndPoint, c.opts.Manager)
     if err != nil {
         panic(err)
     }
 }
 
-func (c *ClientOpt)DeRegister(){
-    c.Cancel()
+func (c *Client)DeRegister(){
+    c.cancel()
+    pool.Destroy()
+}
+
+func getConnectFromPool(addr string, p pool.Pool, opt grpc.DialOption) (*grpc.ClientConn, error){
+    var err error = nil
+    conn, ok, _ := p.Queue.Get()
+    if !ok {
+        time.Sleep(time.Microsecond * 100)
+        conn, ok, _ =  p.Queue.Get()
+    }
+    if !ok{
+        conn, err = grpc.Dial(addr, opt)
+    }
+    return conn.(*grpc.ClientConn), err
+}
+
+func putConnectToPool(conn *grpc.ClientConn, p pool.Pool) {
+    ok, _ := p.Queue.Put(conn)
+    if !ok {
+        time.Sleep(time.Microsecond)
+        ok, _ =  p.Queue.Put(&conn)
+    }
+    if !ok {
+        conn.Close()
+        conn = nil
+    }
 }
 
 func defaultReqFactory(instanceAddr string) (endpoint.Endpoint, io.Closer, error) {
     return func(ctx context.Context, request interface{}) (interface{}, error) {
-        fmt.Println("请求服务: ", instanceAddr)
-        manage :=request.(*BaseGatewayManager)
-        conn, err := grpc.Dial(instanceAddr, grpc.WithInsecure())
+        base :=request.(*BaseGatewayManager)
+        poolManage,ok := pool.GetConnect(instanceAddr)
+        if ! ok {
+            return nil,errors.New("poolManage not found")
+        }
+
+        conn, err := getConnectFromPool(instanceAddr, poolManage, base.manager.(*GrpcPoolManager).Opt)
         if err != nil {
-            fmt.Println(err)
-            panic("connect error")
+            return nil,err
         }
         defer func() {
-            conn.Close()
+            putConnectToPool(conn, poolManage)
         }()
-        manage.Handler(conn)
+        base.Handler(conn)
         return nil,nil
     },nil,nil
 }

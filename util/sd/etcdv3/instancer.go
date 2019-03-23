@@ -4,6 +4,8 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/sd"
 	"github.com/LongMarch7/go-web/util/sd/internal/instance"
+	"github.com/LongMarch7/go-web/transport/pool"
+	"strconv"
 )
 
 // Instancer yields instances stored in a certain etcd keyspace. Any kind of
@@ -14,17 +16,21 @@ type Instancer struct {
 	prefix string
 	logger log.Logger
 	quitc  chan struct{}
+	updatePool   pool.UpdatePool
 }
+
+
 
 // NewInstancer returns an etcd instancer. It will start watching the given
 // prefix for changes, and update the subscribers.
-func NewInstancer(c Client, prefix string, logger log.Logger) (*Instancer, error) {
+func NewInstancer(c Client, prefix string, logger log.Logger, pool  pool.UpdatePool) (*Instancer, error) {
 	s := &Instancer{
 		client: c,
 		prefix: prefix,
 		cache:  instance.NewCache(),
 		logger: logger,
 		quitc:  make(chan struct{}),
+		updatePool: pool,
 	}
 
 	instances, err := s.client.GetEntries(s.prefix)
@@ -52,7 +58,9 @@ func (s *Instancer) loop() {
 				s.cache.Update(sd.Event{Err: err})
 				continue
 			}
-			s.cache.Update(sd.Event{Instances: instances})
+			count, _ :=  strconv.Atoi(string(s.client.GetKV(s.prefix + "thread")))
+			s.updatePool( s.prefix, instances, uint32(count) )
+			s.cache.Update( sd.Event{Instances: instances} )
 
 		case <-s.quitc:
 			return

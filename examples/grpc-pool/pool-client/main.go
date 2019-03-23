@@ -5,8 +5,9 @@ import (
     "flag"
     "net/http"
     "github.com/grpc-ecosystem/grpc-gateway/runtime"
-    "github.com/LongMarch7/go-web/examples/grpc_pool/book"
+    "github.com/LongMarch7/go-web/examples/grpc-pool/book"
     "github.com/LongMarch7/go-web/transport/client"
+    "time"
 )
 
 func main() {
@@ -16,8 +17,15 @@ func main() {
     ctx := context.Background()
     mux := runtime.NewServeMux()
 
-    client1 := client.NewClientOpt(*etcdServer, *prefix, mux, ctx, book.RegisterBookServiceHandlerClient)
-    client1.Register()
+    client1 := client.NewClient(
+        client.EtcdServer(*etcdServer),
+        client.Prefix(*prefix),
+        client.Mux(mux),
+        client.Ctx(ctx),
+        client.RegisterGrpc(book.RegisterBookServiceHandlerClient),
+        client.RetryCount(3),
+        client.RetryTime(time.Second * 3),
+    )
     defer client1.DeRegister()
 
     http.ListenAndServe(":8080", mux)
