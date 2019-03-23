@@ -1,0 +1,7 @@
+[build]
+go get -v github.com/LongMarch7/go-web/examples/etcd/server
+go get -v github.com/LongMarch7/go-web/examples/etcd/client
+
+[run]
+server
+client

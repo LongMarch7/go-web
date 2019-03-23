@@ -1,4 +1,4 @@
-syntax = "proto3";
+cusyntax = "proto3";
 package book;        // 指定生成的 user.pb.go 的包名，防止命名冲突
 
 import "google/api/annotations.proto";
