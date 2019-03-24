@@ -55,6 +55,7 @@ func main() {
             plugin.Logger(log.NewLogfmtLogger(os.Stderr)),
             plugin.MethodName("BookList"),
             plugin.MakeEndpoint(makeGetBookListEndpoint))
+
         bookServer.GetBookInfoHandler = plugin.NewPlugin(
             plugin.Prefix(*prefix),
             plugin.Logger(log.NewLogfmtLogger(os.Stderr)),

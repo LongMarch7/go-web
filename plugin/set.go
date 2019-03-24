@@ -40,7 +40,7 @@ type PluginOpt struct {
 	duration                      metrics.Histogram
 	otTracer                      stdopentracing.Tracer
 	zipkinTracer                  *stdzipkin.Tracer
-	makeEndpoint               func() endpoint.Endpoint
+	makeEndpoint                  func() endpoint.Endpoint
 	decodeFun                     grpc_transport.DecodeRequestFunc
 	encodeFun                     grpc_transport.EncodeResponseFunc
 }
@@ -87,6 +87,7 @@ func newOptions(opts ...POption) PluginOpt {
 		methodName: "default",
 		ratelimitInterval: time.Millisecond * 10,
 		ratelimitCap: 100,
+		hystrixName: "/gateway/default/hystrix",
 		hystrixTimeout: 1000,
 		hystrixErrorPercentThreshold: 50,
 		hystrixSleepWindow: 5000,
