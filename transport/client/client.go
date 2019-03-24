@@ -38,23 +38,23 @@ type IClient interface {
 }
 
 type ClientOpt struct {
-    EtcdServer      string
-    Prefix          string
-    Mux             *runtime.ServeMux
-    Ctx             context.Context
-    DialTimeout     time.Duration
-    DialKeepAlive   time.Duration
-    RegisterGrpc    RegisterHandlerClient
-    Factory         sd.Factory
-    RetryTime       time.Duration
-    RetryCount      int
-    Extend          interface{}
-    Manager         interface{}
-    HystrixTimeout                int
-    HystrixMaxConcurrentRequests  int
-    HystrixRequestVolumeThreshold int
-    HystrixSleepWindow            int
-    HystrixErrorPercentThreshold  int
+    etcdServer      string
+    prefix          string
+    mux             *runtime.ServeMux
+    ctx             context.Context
+    dialTimeout     time.Duration
+    dialKeepAlive   time.Duration
+    registerGrpc    RegisterHandlerClient
+    factory         sd.Factory
+    retryTime       time.Duration
+    retryCount      int
+    extend          interface{}
+    manager         interface{}
+    hystrixTimeout                int
+    hystrixMaxConcurrentRequests  int
+    hystrixRequestVolumeThreshold int
+    hystrixSleepWindow            int
+    hystrixErrorPercentThreshold  int
 }
 
 type Client struct {
@@ -80,23 +80,23 @@ func newClient(opts ...COption) IClient {
 }
 func newOptions(opts ...COption) ClientOpt {
     opt := ClientOpt{
-        EtcdServer: "127.0.0.1:2379",
-        Prefix: "/services/book/",
-        Ctx: context.Background(),
-        Mux: nil,
-        DialTimeout: time.Second * 3,
-        DialKeepAlive: time.Second * 3,
-        Factory: defaultReqFactory,
-        RetryTime: time.Second * 3,
-        RetryCount: 3,
-        RegisterGrpc: nil,
-        Extend: nil,
-        Manager: nil,
-        HystrixTimeout: 1000,
-        HystrixErrorPercentThreshold: 50,
-        HystrixSleepWindow: 5000,
-        HystrixMaxConcurrentRequests: 100,
-        HystrixRequestVolumeThreshold: 50,
+        etcdServer: "127.0.0.1:2379",
+        prefix: "/services/book/",
+        ctx: context.Background(),
+        mux: nil,
+        dialTimeout: time.Second * 3,
+        dialKeepAlive: time.Second * 3,
+        factory: defaultReqFactory,
+        retryTime: time.Second * 3,
+        retryCount: 3,
+        registerGrpc: nil,
+        extend: nil,
+        manager: nil,
+        hystrixTimeout: 1000,
+        hystrixErrorPercentThreshold: 50,
+        hystrixSleepWindow: 5000,
+        hystrixMaxConcurrentRequests: 100,
+        hystrixRequestVolumeThreshold: 50,
     }
 
     for _, o := range opts {
@@ -106,39 +106,39 @@ func newOptions(opts ...COption) ClientOpt {
 }
 
 func (c *Client)init(){
-    if c.opts.Mux == nil || c.opts.RegisterGrpc == nil{
+    if c.opts.mux == nil || c.opts.registerGrpc == nil{
         fmt.Println("mux and grpc need set")
         return
     }
-    commandName := c.opts.Prefix + "hystrix"
+    commandName := c.opts.prefix + "hystrix"
     hystrix.ConfigureCommand(commandName, hystrix.CommandConfig{
-        Timeout: c.opts.HystrixTimeout,
-        ErrorPercentThreshold: c.opts.HystrixErrorPercentThreshold,
-        SleepWindow: c.opts.HystrixSleepWindow,
-        MaxConcurrentRequests: c.opts.HystrixMaxConcurrentRequests,
-        RequestVolumeThreshold: c.opts.HystrixRequestVolumeThreshold,
+        Timeout: c.opts.hystrixTimeout,
+        ErrorPercentThreshold: c.opts.hystrixErrorPercentThreshold,
+        SleepWindow: c.opts.hystrixSleepWindow,
+        MaxConcurrentRequests: c.opts.hystrixMaxConcurrentRequests,
+        RequestVolumeThreshold: c.opts.hystrixRequestVolumeThreshold,
     })
     breakerMw := circuitbreaker.Hystrix(commandName)
 
     options := etcdv3.ClientOptions{
-        DialTimeout: c.opts.DialTimeout,
-        DialKeepAlive: c.opts.DialKeepAlive,
+        DialTimeout: c.opts.dialTimeout,
+        DialKeepAlive: c.opts.dialKeepAlive,
     }
     //连接注册中心
-    client, err := etcdv3.NewClient(c.opts.Ctx, []string{c.opts.EtcdServer}, options)
+    client, err := etcdv3.NewClient(c.opts.ctx, []string{c.opts.etcdServer}, options)
     if err != nil {
         panic(err)
     }
     logger := log.NewNopLogger()
     //创建实例管理器, 此管理器会Watch监听etc中prefix的目录变化更新缓存的服务实例数据
-    instancer, err := etcdv3.NewInstancer(client, c.opts.Prefix, logger, pool.Update)
+    instancer, err := etcdv3.NewInstancer(client, c.opts.prefix, logger, pool.Update)
     if err != nil {
         panic(err)
     }
     c.instancer = instancer
 
     //创建端点管理器， 此管理器根据Factory和监听的到实例创建endPoint并订阅instancer的变化动态更新Factory创建的endPoint
-    endpointer := sd.NewEndpointer(instancer, c.opts.Factory, logger)
+    endpointer := sd.NewEndpointer(instancer, c.opts.factory, logger)
     c.defaultEndpointer = endpointer
 
     //创建负载均衡器
@@ -152,20 +152,20 @@ func (c *Client)init(){
     /**
     也可以通过retry定义尝试次数进行请求
     */
-    reqEndPoint := lb.Retry(c.opts.RetryCount, c.opts.RetryTime, balancer)
+    reqEndPoint := lb.Retry(c.opts.retryCount, c.opts.retryTime, balancer)
 
     reqEndPoint = breakerMw(reqEndPoint)
 
-    ctx, cancel := context.WithCancel(c.opts.Ctx)
+    ctx, cancel := context.WithCancel(c.opts.ctx)
     c.cancel = cancel
 
-    if c.opts.Manager == nil {
-        c.opts.Manager = &GrpcPoolManager{
+    if c.opts.manager == nil {
+        c.opts.manager = &GrpcPoolManager{
             Opt: grpc.WithInsecure(),
-            Extend: c.opts.Extend,
+            Extend: c.opts.extend,
         }
     }
-    err = c.opts.RegisterGrpc(ctx, c.opts.Mux, reqEndPoint, c.opts.Manager)
+    err = c.opts.registerGrpc(ctx, c.opts.mux, reqEndPoint, c.opts.manager)
     if err != nil {
         panic(err)
     }

@@ -7,61 +7,61 @@ import (
 
 func EtcdServer(etcd string) SOption {
     return func(o *ServerOpt) {
-        o.EtcdServer = etcd
+        o.etcdServer = etcd
     }
 }
 
 func Prefix(prefix string) SOption {
     return func(o *ServerOpt) {
-        o.Prefix = prefix
+        o.prefix = prefix
     }
 }
 
 func ServerAddr(server string) SOption {
     return func(o *ServerOpt) {
-        o.ServerAddr = server
+        o.serverAddr = server
     }
 }
 
 func Ctx(ctx context.Context) SOption {
     return func(o *ServerOpt) {
-        o.Ctx = ctx
+        o.ctx = ctx
     }
 }
 
 func DialTimeout(dialTimeout  time.Duration) SOption {
     return func(o *ServerOpt) {
-        o.DialTimeout = dialTimeout
+        o.dialTimeout = dialTimeout
     }
 }
 
 func DialKeepAlive(dialKeepAlive  time.Duration) SOption {
     return func(o *ServerOpt) {
-        o.DialKeepAlive = dialKeepAlive
+        o.dialKeepAlive = dialKeepAlive
     }
 }
 
 func MaxThreadCount(maxThreadCount  string) SOption {
     return func(o *ServerOpt) {
-        o.MaxThreadCount = maxThreadCount
+        o.maxThreadCount = maxThreadCount
     }
 }
 
 func NetType(netType  string) SOption {
     return func(o *ServerOpt) {
-        o.NetType = netType
+        o.netType = netType
     }
 }
 
 func ServiceInit(init  func() interface {}) SOption {
     return func(o *ServerOpt) {
-        o.ServiceStruct = init()
+        o.serviceStruct = init()
     }
 }
 
 type RegisterServer func(*grpc.Server, interface{})
 func RegisterServiceFunc(register RegisterServer) SOption {
     return func(o *ServerOpt) {
-        o.RegisterServerFunc = register
+        o.registerServerFunc = register
     }
 }

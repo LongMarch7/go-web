@@ -25,16 +25,16 @@ type IServer interface {
 }
 
 type ServerOpt struct {
-    EtcdServer           string
-    Prefix               string
-    ServerAddr           string
-    Ctx                  context.Context
-    DialTimeout          time.Duration
-    DialKeepAlive        time.Duration
-    NetType              string
-    MaxThreadCount       string
-    RegisterServerFunc   RegisterServer
-    ServiceStruct        interface{}
+    etcdServer           string
+    prefix               string
+    serverAddr           string
+    ctx                  context.Context
+    dialTimeout          time.Duration
+    dialKeepAlive        time.Duration
+    netType              string
+    maxThreadCount       string
+    registerServerFunc   RegisterServer
+    serviceStruct        interface{}
 }
 
 type Server struct {
@@ -58,16 +58,16 @@ func newServer(opts ...SOption) IServer {
 }
 func newOptions(opts ...SOption) ServerOpt {
     opt := ServerOpt{
-        EtcdServer: "127.0.0.1:2379",
-        Prefix: "/services/book/",
-        ServerAddr: ":0",
-        Ctx: context.Background(),
-        DialTimeout: time.Second * 3,
-        DialKeepAlive: time.Second * 3,
-        MaxThreadCount: "1024*1024",
-        NetType: "tcp",
-        RegisterServerFunc: nil,
-        ServiceStruct: nil,
+        etcdServer: "127.0.0.1:2379",
+        prefix: "/services/book/",
+        serverAddr: ":0",
+        ctx: context.Background(),
+        dialTimeout: time.Second * 3,
+        dialKeepAlive: time.Second * 3,
+        maxThreadCount: "1024*1024",
+        netType: "tcp",
+        registerServerFunc: nil,
+        serviceStruct: nil,
     }
 
     for _, o := range opts {
@@ -78,23 +78,23 @@ func newOptions(opts ...SOption) ServerOpt {
 
 func (s *Server)init(){
     options := etcdv3.ClientOptions{
-        DialTimeout: s.opts.DialTimeout,
-        DialKeepAlive: s.opts.DialKeepAlive,
+        DialTimeout: s.opts.dialTimeout,
+        DialKeepAlive: s.opts.dialKeepAlive,
     }
     //创建etcd连接
-    client, err := etcdv3.NewClient(s.opts.Ctx, []string{s.opts.EtcdServer}, options)
+    client, err := etcdv3.NewClient(s.opts.ctx, []string{s.opts.etcdServer}, options)
     if err != nil {
         panic(err)
     }
 
-    ls, _ := net.Listen("tcp", s.opts.ServerAddr)
+    ls, _ := net.Listen("tcp", s.opts.serverAddr)
 
     port := ls.Addr().(*net.TCPAddr).Port
     s.listenConnector = ls
     instance := ":" + strconv.Itoa(port)
     // 创建注册器
     registrar := etcdv3.NewRegistrar(client, etcdv3.Service{
-        Key:   s.opts.Prefix + instance,
+        Key:   s.opts.prefix + instance,
         Value: instance,
     }, log.NewNopLogger())
 
@@ -102,11 +102,11 @@ func (s *Server)init(){
     registrar.Register()
     s.registrar = registrar
 
-    client.SetKV(s.opts.Prefix + "thread", s.opts.MaxThreadCount)
+    client.SetKV(s.opts.prefix + "thread", s.opts.maxThreadCount)
 }
 
 func (s *Server)Run(){
-    if s.opts.RegisterServerFunc == nil || s.opts.ServiceStruct == nil {
+    if s.opts.registerServerFunc == nil || s.opts.serviceStruct == nil {
         panic(errors.New("RegisterServerFunc and ServiceStruct must set"))
     }
     c = make(chan os.Signal, 1)
@@ -120,7 +120,7 @@ func (s *Server)Run(){
         gs.Stop()
     }()
 
-    s.opts.RegisterServerFunc(gs, s.opts.ServiceStruct)
+    s.opts.registerServerFunc(gs, s.opts.serviceStruct)
     go gs.Serve(s.listenConnector)
     go Producer()
     wg.Wait()

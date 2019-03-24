@@ -9,102 +9,102 @@ import (
 
 func EtcdServer(etcd string) COption {
     return func(o *ClientOpt) {
-        o.EtcdServer = etcd
+        o.etcdServer = etcd
     }
 }
 
 func Prefix(prefix string) COption {
     return func(o *ClientOpt) {
-        o.Prefix = prefix
+        o.prefix = prefix
     }
 }
 
 func Ctx(ctx context.Context) COption {
     return func(o *ClientOpt) {
-        o.Ctx = ctx
+        o.ctx = ctx
     }
 }
 
 func Mux(mux *runtime.ServeMux) COption {
     return func(o *ClientOpt) {
-        o.Mux = mux
+        o.mux = mux
     }
 }
 
 func DialTimeout(dialTimeout  time.Duration) COption {
     return func(o *ClientOpt) {
-        o.DialTimeout = dialTimeout
+        o.dialTimeout = dialTimeout
     }
 }
 
 func DialKeepAlive(dialKeepAlive  time.Duration) COption {
     return func(o *ClientOpt) {
-        o.DialKeepAlive = dialKeepAlive
+        o.dialKeepAlive = dialKeepAlive
     }
 }
 
 func Factory(factory  sd.Factory) COption {
     return func(o *ClientOpt) {
-        o.Factory = factory
+        o.factory = factory
     }
 }
 
 func RetryTime(retryTime  time.Duration) COption {
     return func(o *ClientOpt) {
-        o.RetryTime = retryTime
+        o.retryTime = retryTime
     }
 }
 
 func RetryCount(retryCount  int) COption {
     return func(o *ClientOpt) {
-        o.RetryCount = retryCount
+        o.retryCount = retryCount
     }
 }
 
 func RegisterGrpc(registerGrpc  RegisterHandlerClient) COption {
     return func(o *ClientOpt) {
-        o.RegisterGrpc = registerGrpc
+        o.registerGrpc = registerGrpc
     }
 }
 
 func Extend(extend  interface{}) COption {
     return func(o *ClientOpt) {
-        o.Extend = extend
+        o.extend = extend
     }
 }
 
 func Manager(manager  interface{}) COption {
     return func(o *ClientOpt) {
-        o.Manager = manager
+        o.manager = manager
     }
 }
 
 func HystrixTimeout(hystrixTimeout  int) COption {
    return func(o *ClientOpt) {
-       o.HystrixTimeout = hystrixTimeout
+       o.hystrixTimeout = hystrixTimeout
    }
 }
 
 func HystrixErrorPercentThreshold(hystrixErrorPercentThreshold  int) COption {
     return func(o *ClientOpt) {
-        o.HystrixErrorPercentThreshold = hystrixErrorPercentThreshold
+        o.hystrixErrorPercentThreshold = hystrixErrorPercentThreshold
     }
 }
 
 func HystrixSleepWindow(hystrixSleepWindow  int) COption {
     return func(o *ClientOpt) {
-        o.HystrixSleepWindow = hystrixSleepWindow
+        o.hystrixSleepWindow = hystrixSleepWindow
     }
 }
 
 func HystrixMaxConcurrentRequests(hystrixMaxConcurrentRequests  int) COption {
     return func(o *ClientOpt) {
-        o.HystrixMaxConcurrentRequests = hystrixMaxConcurrentRequests
+        o.hystrixMaxConcurrentRequests = hystrixMaxConcurrentRequests
     }
 }
 
 func HystrixRequestVolumeThreshold(hystrixRequestVolumeThreshold  int) COption {
     return func(o *ClientOpt) {
-        o.HystrixRequestVolumeThreshold = hystrixRequestVolumeThreshold
+        o.hystrixRequestVolumeThreshold = hystrixRequestVolumeThreshold
     }
 }
