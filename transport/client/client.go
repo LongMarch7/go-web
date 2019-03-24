@@ -3,6 +3,8 @@ package client
 import (
     "context"
     "fmt"
+    "github.com/afex/hystrix-go/hystrix"
+    "github.com/go-kit/kit/circuitbreaker"
     "github.com/go-kit/kit/sd"
     "github.com/LongMarch7/go-web/util/sd/etcdv3"
     "github.com/go-kit/kit/sd/lb"
@@ -14,9 +16,8 @@ import (
     "github.com/LongMarch7/go-web/transport/pool"
 )
 
-type GatewayHandler func(conn *grpc.ClientConn)
 type BaseGatewayManager struct {
-    Handler GatewayHandler
+    Handler func(conn *grpc.ClientConn) error
     manager interface{}
 }
 
@@ -49,11 +50,18 @@ type ClientOpt struct {
     RetryCount      int
     Extend          interface{}
     Manager         interface{}
+    HystrixTimeout                int
+    HystrixMaxConcurrentRequests  int
+    HystrixRequestVolumeThreshold int
+    HystrixSleepWindow            int
+    HystrixErrorPercentThreshold  int
 }
 
 type Client struct {
     opts      ClientOpt
     cancel    context.CancelFunc
+    instancer *etcdv3.Instancer
+    defaultEndpointer *sd.DefaultEndpointer
 }
 
 
@@ -84,6 +92,11 @@ func newOptions(opts ...COption) ClientOpt {
         RegisterGrpc: nil,
         Extend: nil,
         Manager: nil,
+        HystrixTimeout: 1000,
+        HystrixErrorPercentThreshold: 50,
+        HystrixSleepWindow: 5000,
+        HystrixMaxConcurrentRequests: 100,
+        HystrixRequestVolumeThreshold: 50,
     }
 
     for _, o := range opts {
@@ -97,6 +110,16 @@ func (c *Client)init(){
         fmt.Println("mux and grpc need set")
         return
     }
+    commandName := c.opts.Prefix + "hystrix"
+    hystrix.ConfigureCommand(commandName, hystrix.CommandConfig{
+        Timeout: c.opts.HystrixTimeout,
+        ErrorPercentThreshold: c.opts.HystrixErrorPercentThreshold,
+        SleepWindow: c.opts.HystrixSleepWindow,
+        MaxConcurrentRequests: c.opts.HystrixMaxConcurrentRequests,
+        RequestVolumeThreshold: c.opts.HystrixRequestVolumeThreshold,
+    })
+    breakerMw := circuitbreaker.Hystrix(commandName)
+
     options := etcdv3.ClientOptions{
         DialTimeout: c.opts.DialTimeout,
         DialKeepAlive: c.opts.DialKeepAlive,
@@ -112,9 +135,12 @@ func (c *Client)init(){
     if err != nil {
         panic(err)
     }
+    c.instancer = instancer
 
     //创建端点管理器， 此管理器根据Factory和监听的到实例创建endPoint并订阅instancer的变化动态更新Factory创建的endPoint
     endpointer := sd.NewEndpointer(instancer, c.opts.Factory, logger)
+    c.defaultEndpointer = endpointer
+
     //创建负载均衡器
     balancer := lb.NewRoundRobin(endpointer)
 
@@ -127,6 +153,8 @@ func (c *Client)init(){
     也可以通过retry定义尝试次数进行请求
     */
     reqEndPoint := lb.Retry(c.opts.RetryCount, c.opts.RetryTime, balancer)
+
+    reqEndPoint = breakerMw(reqEndPoint)
 
     ctx, cancel := context.WithCancel(c.opts.Ctx)
     c.cancel = cancel
@@ -145,5 +173,9 @@ func (c *Client)init(){
 
 func (c *Client)DeRegister(){
     c.cancel()
+    c.defaultEndpointer.Close()
+    c.defaultEndpointer = nil
+    c.instancer.Stop()
+    c.instancer = nil
     pool.Destroy()
 }

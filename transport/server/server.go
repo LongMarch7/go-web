@@ -2,9 +2,13 @@ package server
 
 import (
     "errors"
+    "fmt"
     "google.golang.org/grpc"
     "net"
+    "os"
+    "os/signal"
     "strconv"
+    "sync"
     "time"
     "context"
     "github.com/LongMarch7/go-web/util/sd/etcdv3"
@@ -12,6 +16,8 @@ import (
     grpc_transport "github.com/go-kit/kit/transport/grpc"
 )
 
+var c chan os.Signal
+var wg sync.WaitGroup
 
 type IServer interface {
     init()
@@ -32,8 +38,9 @@ type ServerOpt struct {
 }
 
 type Server struct {
-    opts ServerOpt
+    opts                  ServerOpt
     listenConnector       net.Listener
+    registrar             *etcdv3.Registrar
 }
 
 type SOption func(o *ServerOpt)
@@ -93,6 +100,7 @@ func (s *Server)init(){
 
     // 注册器启动注册
     registrar.Register()
+    s.registrar = registrar
 
     client.SetKV(s.opts.Prefix + "thread", s.opts.MaxThreadCount)
 }
@@ -101,9 +109,36 @@ func (s *Server)Run(){
     if s.opts.RegisterServerFunc == nil || s.opts.ServiceStruct == nil {
         panic(errors.New("RegisterServerFunc and ServiceStruct must set"))
     }
+    c = make(chan os.Signal, 1)
+    signal.Notify(c, os.Interrupt, os.Kill)
+    wg.Add(1)
+
     gs := grpc.NewServer(grpc.UnaryInterceptor(grpc_transport.Interceptor))
+    defer func(){
+        s.registrar.Deregister()
+        s.registrar = nil
+        gs.Stop()
+    }()
+
     s.opts.RegisterServerFunc(gs, s.opts.ServiceStruct)
-    gs.Serve(s.listenConnector)
+    go gs.Serve(s.listenConnector)
+    go Producer()
+    wg.Wait()
+}
+
+func Producer(){
+    Loop:
+    for{
+        select {
+        case s := <-c:
+            fmt.Println()
+            fmt.Println("Producer | get", s)
+            break Loop
+        default:
+        }
+        time.Sleep(500 * time.Millisecond)
+    }
+    wg.Done()
 }
 
 func DefaultdecodeRequest(_ context.Context, req interface{}) (interface{}, error) {

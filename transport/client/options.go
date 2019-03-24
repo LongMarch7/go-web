@@ -79,8 +79,32 @@ func Manager(manager  interface{}) COption {
     }
 }
 
-//func DefaultCount(defaultCount  uint32) COption {
-//    return func(o *ClientOpt) {
-//        o.DefaultCount = defaultCount
-//    }
-//}
+func HystrixTimeout(hystrixTimeout  int) COption {
+   return func(o *ClientOpt) {
+       o.HystrixTimeout = hystrixTimeout
+   }
+}
+
+func HystrixErrorPercentThreshold(hystrixErrorPercentThreshold  int) COption {
+    return func(o *ClientOpt) {
+        o.HystrixErrorPercentThreshold = hystrixErrorPercentThreshold
+    }
+}
+
+func HystrixSleepWindow(hystrixSleepWindow  int) COption {
+    return func(o *ClientOpt) {
+        o.HystrixSleepWindow = hystrixSleepWindow
+    }
+}
+
+func HystrixMaxConcurrentRequests(hystrixMaxConcurrentRequests  int) COption {
+    return func(o *ClientOpt) {
+        o.HystrixMaxConcurrentRequests = hystrixMaxConcurrentRequests
+    }
+}
+
+func HystrixRequestVolumeThreshold(hystrixRequestVolumeThreshold  int) COption {
+    return func(o *ClientOpt) {
+        o.HystrixRequestVolumeThreshold = hystrixRequestVolumeThreshold
+    }
+}

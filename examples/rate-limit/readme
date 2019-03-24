@@ -1,0 +1,16 @@
+[build]
+go get -v github.com/LongMarch7/go-web/examples/rate-limit/limit-server
+go get -v github.com/LongMarch7/go-web/examples/rate-limit/limit-client
+
+[create proto]
+----gateway----
+protoc -I. -Isrc -Isrc/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis  --grpc-gateway_out=logtostderr=true:. src/github.com/LongMarch7/go-web/examples/rate-limit/book/book.proto
+
+-----grpc----
+protoc  --go_out=plugins=grpc:. src/github.com/LongMarch7/go-web/examples/rate-limit/book/book.proto
+
+[run]
+etcd
+limit-server
+limit-client
+curl "http://localhost:8080/gateway/bookinfo?book_id=1"

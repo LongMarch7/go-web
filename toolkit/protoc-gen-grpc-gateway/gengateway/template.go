@@ -457,10 +457,10 @@ func Register{{$svc.GetName}}{{$.RegisterFuncSuffix}}Client(ctx context.Context,
 	{{range $b := $m.Bindings}}
 	mux.Handle({{$b.HTTPMethod | printf "%q"}}, pattern_{{$svc.GetName}}_{{$m.GetName}}_{{$b.Index}}, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		manager := client.NewManager(extend)
-		manager.Handler = func(conn *grpc.ClientConn) {
+		manager.Handler = func(conn *grpc.ClientConn) error{
 			outboundMarshaler, resp, err := commonFunc(w, req, pathParams, request_{{$svc.GetName}}_{{$m.GetName}}_{{$b.Index}}, conn)
 			if( err != nil ){
-                return
+                return err
 			}
 			{{if $m.GetServerStreaming}}
 			forward_{{$svc.GetName}}_{{$m.GetName}}_{{$b.Index}}(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
@@ -471,6 +471,7 @@ func Register{{$svc.GetName}}{{$.RegisterFuncSuffix}}Client(ctx context.Context,
 			forward_{{$svc.GetName}}_{{$m.GetName}}_{{$b.Index}}(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 			{{end}}
 			{{end}}
+			return nil
 		}
 		endpoint(ctx, manager)
 	})

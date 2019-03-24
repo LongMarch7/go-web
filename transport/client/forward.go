@@ -68,7 +68,7 @@ func defaultReqFactory(instanceAddr string) (endpoint.Endpoint, io.Closer, error
 		defer func() {
 			putConnectToPool(cManager, poolManage)
 		}()
-		base.Handler(cManager.Conn)
-		return nil,nil
+		err = base.Handler(cManager.Conn)
+		return nil,err
 	},nil,nil
 }

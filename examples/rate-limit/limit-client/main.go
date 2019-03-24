@@ -6,7 +6,7 @@ import (
     "fmt"
     "net/http"
     "github.com/grpc-ecosystem/grpc-gateway/runtime"
-    "github.com/LongMarch7/go-web/examples/grpc-pool/book"
+    "github.com/LongMarch7/go-web/examples/rate-limit/book"
     "github.com/LongMarch7/go-web/transport/client"
     "os"
     "os/signal"
