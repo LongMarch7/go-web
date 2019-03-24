@@ -1,4 +1,4 @@
-package instrumenting
+package instrumentingMid
 
 import (
 	"context"
@@ -20,6 +20,7 @@ func InstrumentingMiddleware(duration metrics.Histogram) endpoint.Middleware {
 			defer func(begin time.Time) {
 				duration.With("success", fmt.Sprint(err == nil)).Observe(time.Since(begin).Seconds())
 			}(time.Now())
+
 			return next(ctx, request)
 
 		}
