@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"github.com/LongMarch7/go-web/transport/server"
 	"github.com/afex/hystrix-go/hystrix"
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
@@ -9,7 +8,7 @@ import (
 	"github.com/go-kit/kit/metrics/discard"
 	"github.com/go-kit/kit/ratelimit"
 	kitopentracing "github.com/go-kit/kit/tracing/opentracing"
-	kitzipkin "github.com/go-kit/kit/tracing/zipkin"
+	//kitzipkin "github.com/go-kit/kit/tracing/zipkin"
 	"golang.org/x/time/rate"
 	"time"
 	"github.com/LongMarch7/go-web/plugin/logger-middleware"
@@ -21,6 +20,8 @@ import (
 	"github.com/openzipkin/zipkin-go"
 	grpc_transport "github.com/go-kit/kit/transport/grpc"
 	"context"
+	zipkinot "github.com/openzipkin-contrib/zipkin-go-opentracing"
+	"github.com/LongMarch7/go-web/transport/util"
 )
 
 type EnAndDeFun func(_ context.Context, req interface{}) (interface{}, error)
@@ -54,7 +55,8 @@ type POption func(o *PluginOpt)
 func NewPlugin(opts ...POption) *grpc_transport.Server {
 	return newPlugin(opts...).server
 }
-
+var collector zipkinot.Collector = nil
+var zip stdopentracing.Tracer = nil
 func newPlugin(opts ...POption) *Plugin {
 	options := newOptions(opts...)
 
@@ -67,8 +69,12 @@ func newPlugin(opts ...POption) *Plugin {
 		pluginEndpoint = options.makeEndpoint()
 		pluginEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(options.ratelimitInterval), options.ratelimitCap))(pluginEndpoint)
 		pluginEndpoint = newHystrixbyDefaultConfig(options)(pluginEndpoint)
-		pluginEndpoint = kitopentracing.TraceServer(options.otTracer, options.prefix+"---"+options.methodName)(pluginEndpoint)
-		pluginEndpoint = kitzipkin.TraceEndpoint(options.zipkinTracer, options.prefix+"---"+options.methodName)(pluginEndpoint)
+		zip , collector = GetZipkinTracer(options.prefix)
+		if zip == nil {
+			return s
+		}
+		pluginEndpoint = kitopentracing.TraceClient(zip, options.methodName)(pluginEndpoint)
+		//pluginEndpoint = kitzipkin.TraceEndpoint(options.zipkinTracer, options.methodName)(pluginEndpoint)
 		pluginEndpoint = loggerMid.LoggingMiddleware(log.With(options.logLogger, "method", options.methodName))(pluginEndpoint)
 		pluginEndpoint = instrumentingMid.InstrumentingMiddleware(options.duration.With("method", options.methodName))(pluginEndpoint)
 		s.server = grpc_transport.NewServer(
@@ -98,8 +104,8 @@ func newOptions(opts ...POption) PluginOpt {
 		otTracer: opentracing.GlobalTracer(),
 		zipkinTracer: zkt,
 		makeEndpoint: nil,
-		decodeFun: server.DefaultdecodeRequest,
-		encodeFun: server.DefaultencodeResponse,
+		decodeFun: util.DefaultdecodeRequest,
+		encodeFun: util.DefaultencodeResponse,
 	}
 
 	for _, o := range opts {
@@ -119,4 +125,33 @@ func newHystrixbyDefaultConfig(opt PluginOpt) endpoint.Middleware{
 	})
 
 	return circuitbreaker.Hystrix(commandName)
+}
+
+func DestroyPlugin(){
+	collector.Close()
+}
+
+func NewZipkinTracer(name string) (stdopentracing.Tracer, zipkinot.Collector){
+	local_collector, err := zipkinot.NewHTTPCollector("http://127.0.0.1:9411/api/v1/spans")
+	if err != nil {
+		return nil,nil
+	}
+	var (
+		debug       = false
+		hostPort    = "localhost:0"
+		serviceName = name
+	)
+	recorder := zipkinot.NewRecorder(local_collector, debug, hostPort, serviceName)
+	newTracer, err := zipkinot.NewTracer(recorder)
+	if err != nil {
+		return nil, local_collector
+	}
+	return newTracer,local_collector
+}
+
+func GetZipkinTracer(name string) (stdopentracing.Tracer, zipkinot.Collector){
+	if zip == nil || collector == nil{
+		zip, collector = NewZipkinTracer(name)
+	}
+	return zip, collector
 }

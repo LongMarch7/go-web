@@ -74,29 +74,45 @@ func request_BookService_GetBookList_0(ctx context.Context, marshaler runtime.Ma
 type RequestFunc func(context.Context, runtime.Marshaler, BookServiceClient, *http.Request, map[string]string) (proto.Message, runtime.ServerMetadata, error)
 
 func RegisterBookServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, endpoint endpoint.Endpoint, extend interface{}) error {
-	var commonFunc = func(w http.ResponseWriter, req *http.Request, pathParams map[string]string, request RequestFunc, conn *grpc.ClientConn) (runtime.Marshaler, proto.Message, error) {
-		var client = NewBookServiceClient(conn)
+	//var commonFunc = func(w http.ResponseWriter, req *http.Request, pathParams map[string]string, request RequestFunc, conn *grpc.ClientConn) (runtime.Marshaler, proto.Message, error){
+	//        var client = NewBookServiceClient(conn)
+	//
+	//		ctx, cancel := context.WithCancel(req.Context())
+	//
+	//		defer cancel()
+	//		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+	//		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+	//		if err != nil {
+	//			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+	//			return outboundMarshaler, nil, errors.New("runtime.AnnotateContext error")
+	//		}
+	//		resp, md, err := request(rctx, inboundMarshaler, client, req, pathParams)
+	//		ctx = runtime.NewServerMetadataContext(ctx, md)
+	//		if err != nil {
+	//			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+	//			return outboundMarshaler, nil, errors.New("runtime.NewServerMetadataContext error")
+	//		}
+	//       return outboundMarshaler, resp, nil
+	//   }
+
+	mux.Handle("GET", pattern_BookService_GetBookInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		manager := client.NewManager(extend)
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
 		rctx, err := runtime.AnnotateContext(ctx, mux, req)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return outboundMarshaler, nil, errors.New("runtime.AnnotateContext error")
+			return
 		}
-		resp, md, err := request(rctx, inboundMarshaler, client, req, pathParams)
-		ctx = runtime.NewServerMetadataContext(ctx, md)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return outboundMarshaler, nil, errors.New("runtime.NewServerMetadataContext error")
-		}
-		return outboundMarshaler, resp, nil
-	}
-
-	mux.Handle("GET", pattern_BookService_GetBookInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		manager := client.NewManager(extend)
-		manager.Handler = func(conn *grpc.ClientConn) error {
-			outboundMarshaler, resp, err := commonFunc(w, req, pathParams, request_BookService_GetBookInfo_0, conn)
+		manager.Handler = func(rctx context.Context, conn *grpc.ClientConn) error {
+			var client = NewBookServiceClient(conn)
+			resp, md, err := request_BookService_GetBookInfo_0(rctx, inboundMarshaler, client, req, pathParams)
+			ctx = runtime.NewServerMetadataContext(ctx, md)
+			if err != nil {
+				runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+				return errors.New("runtime.NewServerMetadataContext error")
+			}
 			if err != nil {
 				return err
 			}
@@ -105,13 +121,27 @@ func RegisterBookServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 
 			return nil
 		}
-		endpoint(ctx, manager)
+		endpoint(rctx, manager)
 	})
 
 	mux.Handle("GET", pattern_BookService_GetBookList_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		manager := client.NewManager(extend)
-		manager.Handler = func(conn *grpc.ClientConn) error {
-			outboundMarshaler, resp, err := commonFunc(w, req, pathParams, request_BookService_GetBookList_0, conn)
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		manager.Handler = func(rctx context.Context, conn *grpc.ClientConn) error {
+			var client = NewBookServiceClient(conn)
+			resp, md, err := request_BookService_GetBookList_0(rctx, inboundMarshaler, client, req, pathParams)
+			ctx = runtime.NewServerMetadataContext(ctx, md)
+			if err != nil {
+				runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+				return errors.New("runtime.NewServerMetadataContext error")
+			}
 			if err != nil {
 				return err
 			}
@@ -120,7 +150,7 @@ func RegisterBookServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 
 			return nil
 		}
-		endpoint(ctx, manager)
+		endpoint(rctx, manager)
 	})
 
 	return nil

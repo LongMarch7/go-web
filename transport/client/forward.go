@@ -8,18 +8,19 @@ import (
 	"io"
 	"time"
 	"context"
+	kitopentracing "github.com/go-kit/kit/tracing/opentracing"
 )
 
 var InvalidateTimeout = time.Minute * 3
 
-func getConnectFromPool(addr string, p pool.Pool, opt grpc.DialOption) (*pool.ConnectManager, error){
+func getConnectFromPool(addr string, p pool.Pool, opt ...grpc.DialOption) (*pool.ConnectManager, error){
 	cManager, ok, _ := p.Queue.Get()
 	if !ok {
 		time.Sleep(time.Microsecond * 100)
 		cManager, ok, _ =  p.Queue.Get()
 	}
 	if !ok{
-		conn, err := grpc.Dial(addr, opt)
+		conn, err := grpc.Dial(addr, opt...)
 		if err == nil {
 			cManager = new(pool.ConnectManager)
 			cManager.(*pool.ConnectManager).Conn = conn
@@ -54,21 +55,24 @@ func putConnectToPool(manager *pool.ConnectManager, p pool.Pool) {
 }
 
 func defaultReqFactory(instanceAddr string) (endpoint.Endpoint, io.Closer, error) {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	endpointFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
 		base :=request.(*BaseGatewayManager)
 		poolManage,ok := pool.GetConnect(instanceAddr)
 		if ! ok {
-			return nil,errors.New("poolManage not found")
+		return nil,errors.New("poolManage not found")
 		}
 
-		cManager, err := getConnectFromPool(instanceAddr, poolManage, base.manager.(*GrpcPoolManager).Opt)
+		cManager, err := getConnectFromPool(instanceAddr, poolManage, base.manager.(*GrpcPoolManager).Opt...)
 		if err != nil {
-			return nil,err
+		return nil,err
 		}
 		defer func() {
-			putConnectToPool(cManager, poolManage)
+		putConnectToPool(cManager, poolManage)
 		}()
-		err = base.Handler(cManager.Conn)
+		err = base.Handler(ctx, cManager.Conn)
 		return nil,err
-	},nil,nil
+	}
+	endpointFunc = breakerMw(endpointFunc)
+	endpointFunc = kitopentracing.TraceClient(zip, "httpRequest")(endpointFunc)
+	return endpointFunc,nil,nil
 }

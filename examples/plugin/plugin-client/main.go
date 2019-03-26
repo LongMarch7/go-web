@@ -5,9 +5,9 @@ import (
     "flag"
     "fmt"
     "net/http"
-    "github.com/grpc-ecosystem/grpc-gateway/runtime"
     "github.com/LongMarch7/go-web/examples/plugin/book"
     "github.com/LongMarch7/go-web/transport/client"
+    "github.com/LongMarch7/go-web/plugin/forward-metadata"
     "os"
     "os/signal"
     "sync"
@@ -38,7 +38,7 @@ func main() {
     flag.Parse()
 
     ctx := context.Background()
-    mux := runtime.NewServeMux()
+    mux := forward_metadata.NewServeMux()
     defer func(){
         mux = nil
     }()

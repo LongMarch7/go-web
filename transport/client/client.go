@@ -3,21 +3,25 @@ package client
 import (
     "context"
     "fmt"
+    "github.com/LongMarch7/go-web/plugin"
     "github.com/afex/hystrix-go/hystrix"
     "github.com/go-kit/kit/circuitbreaker"
     "github.com/go-kit/kit/sd"
     "github.com/LongMarch7/go-web/util/sd/etcdv3"
     "github.com/go-kit/kit/sd/lb"
+    "github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
     "google.golang.org/grpc"
     "time"
     "github.com/go-kit/kit/log"
     "github.com/go-kit/kit/endpoint"
     "github.com/grpc-ecosystem/grpc-gateway/runtime"
     "github.com/LongMarch7/go-web/transport/pool"
+    zipkinot "github.com/openzipkin-contrib/zipkin-go-opentracing"
+    stdopentracing "github.com/opentracing/opentracing-go"
 )
 
 type BaseGatewayManager struct {
-    Handler func(conn *grpc.ClientConn) error
+    Handler func(rctx context.Context, conn *grpc.ClientConn) error
     manager interface{}
 }
 
@@ -28,7 +32,7 @@ func NewManager(manager interface{}) *BaseGatewayManager {
 }
 
 type GrpcPoolManager struct{
-    Opt       grpc.DialOption
+    Opt       []grpc.DialOption
     Extend    interface{}
 }
 type RegisterHandlerClient func( context.Context, *runtime.ServeMux, endpoint.Endpoint, interface{}) error
@@ -64,7 +68,9 @@ type Client struct {
     defaultEndpointer *sd.DefaultEndpointer
 }
 
-
+var collector zipkinot.Collector
+var zip stdopentracing.Tracer
+var breakerMw endpoint.Middleware
 type COption func(o *ClientOpt)
 func NewClient(opts ...COption) IClient {
     return newClient(opts...)
@@ -118,7 +124,7 @@ func (c *Client)init(){
         MaxConcurrentRequests: c.opts.hystrixMaxConcurrentRequests,
         RequestVolumeThreshold: c.opts.hystrixRequestVolumeThreshold,
     })
-    breakerMw := circuitbreaker.Hystrix(commandName)
+    breakerMw = circuitbreaker.Hystrix(commandName)
 
     options := etcdv3.ClientOptions{
         DialTimeout: c.opts.dialTimeout,
@@ -154,14 +160,19 @@ func (c *Client)init(){
     */
     reqEndPoint := lb.Retry(c.opts.retryCount, c.opts.retryTime, balancer)
 
-    reqEndPoint = breakerMw(reqEndPoint)
-
     ctx, cancel := context.WithCancel(c.opts.ctx)
     c.cancel = cancel
 
+    zip , collector = plugin.NewZipkinTracer("gateway")
+    dialOpts := []grpc.DialOption{grpc.WithInsecure(), grpc.WithBlock()}
+    if zip != nil {
+        dialOpts = append(dialOpts,grpc.WithUnaryInterceptor(
+            otgrpc.OpenTracingClientInterceptor(zip, otgrpc.LogPayloads()),
+        ))
+    }
     if c.opts.manager == nil {
         c.opts.manager = &GrpcPoolManager{
-            Opt: grpc.WithInsecure(),
+            Opt: dialOpts,
             Extend: c.opts.extend,
         }
     }
@@ -177,5 +188,7 @@ func (c *Client)DeRegister(){
     c.defaultEndpointer = nil
     c.instancer.Stop()
     c.instancer = nil
+    collector.Close()
+    collector = nil
     pool.Destroy()
 }

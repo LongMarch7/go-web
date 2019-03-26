@@ -3,6 +3,8 @@ package server
 import (
     "errors"
     "fmt"
+    "github.com/LongMarch7/go-web/plugin"
+    "github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
     "google.golang.org/grpc"
     "net"
     "os"
@@ -14,6 +16,7 @@ import (
     "github.com/LongMarch7/go-web/util/sd/etcdv3"
     "github.com/go-kit/kit/log"
     grpc_transport "github.com/go-kit/kit/transport/grpc"
+    "github.com/grpc-ecosystem/go-grpc-middleware"
 )
 
 var c chan os.Signal
@@ -113,7 +116,16 @@ func (s *Server)Run(){
     signal.Notify(c, os.Interrupt, os.Kill)
     wg.Add(1)
 
-    gs := grpc.NewServer(grpc.UnaryInterceptor(grpc_transport.Interceptor))
+    zip, _ := plugin.GetZipkinTracer(s.opts.prefix + "gateway_grpc_server")
+    var opts []grpc.ServerOption
+    if zip != nil {
+        opts = append(opts,grpc_middleware.WithUnaryServerChain(
+            otgrpc.OpenTracingServerInterceptor(zip, otgrpc.LogPayloads()),
+        ),)
+    }else{
+        opts =[]grpc.ServerOption{grpc.UnaryInterceptor(grpc_transport.Interceptor)}
+    }
+    gs := grpc.NewServer(opts...)
     defer func(){
         s.registrar.Deregister()
         s.registrar = nil
@@ -139,12 +151,4 @@ func Producer(){
         time.Sleep(500 * time.Millisecond)
     }
     wg.Done()
-}
-
-func DefaultdecodeRequest(_ context.Context, req interface{}) (interface{}, error) {
-    return req, nil
-}
-
-func DefaultencodeResponse(_ context.Context, rsp interface{}) (interface{}, error) {
-    return rsp, nil
 }

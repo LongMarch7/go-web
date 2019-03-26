@@ -8,6 +8,7 @@ import (
     "github.com/go-kit/kit/endpoint"
     "github.com/LongMarch7/go-web/examples/grpc-pool/book"
     "github.com/LongMarch7/go-web/transport/server"
+    "github.com/LongMarch7/go-web/transport/util"
 )
 
 //创建bookList的EndPoint
@@ -41,15 +42,15 @@ func Init() interface {}{
     bookServer := new(book.DefaultBookServiceServer)
     bookListHandler := grpc_transport.NewServer(
         makeGetBookListEndpoint(),
-        server.DefaultdecodeRequest,
-        server.DefaultencodeResponse,
+        util.DefaultdecodeRequest,
+        util.DefaultencodeResponse,
     )
     bookServer.GetBookListHandler = bookListHandler
 
     bookInfoHandler := grpc_transport.NewServer(
         makeGetBookInfoEndpoint(),
-        server.DefaultdecodeRequest,
-        server.DefaultencodeResponse,
+        util.DefaultdecodeRequest,
+        util.DefaultencodeResponse,
     )
     bookServer.GetBookInfoHandler = bookInfoHandler
     return bookServer

@@ -431,8 +431,32 @@ var (
 // "{{$svc.GetName}}Client" to call the correct interceptors.
 type RequestFunc func( context.Context, runtime.Marshaler, BookServiceClient, *http.Request, map[string]string) (proto.Message, runtime.ServerMetadata, error)
 func Register{{$svc.GetName}}{{$.RegisterFuncSuffix}}Client(ctx context.Context, mux *runtime.ServeMux, endpoint endpoint.Endpoint, extend interface{}) error {
-    var commonFunc = func(w http.ResponseWriter, req *http.Request, pathParams map[string]string, request RequestFunc, conn *grpc.ClientConn) (runtime.Marshaler, proto.Message, error){
-            var client = New{{$svc.GetName}}Client(conn)
+    //var commonFunc = func(w http.ResponseWriter, req *http.Request, pathParams map[string]string, request RequestFunc, conn *grpc.ClientConn) (runtime.Marshaler, proto.Message, error){
+    //        var client = New{{$svc.GetName}}Client(conn)
+	//	{{- if $UseRequestContext }}
+	//		ctx, cancel := context.WithCancel(req.Context())
+	//	{{- else -}}
+	//		ctx, cancel := context.WithCancel(ctx)
+	//	{{- end }}
+	//		defer cancel()
+	//		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+	//		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+	//		if err != nil {
+	//			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+	//			return outboundMarshaler, nil, errors.New("runtime.AnnotateContext error")
+	//		}
+	//		resp, md, err := request(rctx, inboundMarshaler, client, req, pathParams)
+	//		ctx = runtime.NewServerMetadataContext(ctx, md)
+	//		if err != nil {
+	//			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+	//			return outboundMarshaler, nil, errors.New("runtime.NewServerMetadataContext error") 
+	//		}
+    //       return outboundMarshaler, resp, nil
+    //   }
+	{{range $m := $svc.Methods}}
+	{{range $b := $m.Bindings}}
+	mux.Handle({{$b.HTTPMethod | printf "%q"}}, pattern_{{$svc.GetName}}_{{$m.GetName}}_{{$b.Index}}, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		manager := client.NewManager(extend)
 		{{- if $UseRequestContext }}
 			ctx, cancel := context.WithCancel(req.Context())
 		{{- else -}}
@@ -443,22 +467,16 @@ func Register{{$svc.GetName}}{{$.RegisterFuncSuffix}}Client(ctx context.Context,
 			rctx, err := runtime.AnnotateContext(ctx, mux, req)
 			if err != nil {
 				runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-				return outboundMarshaler, nil, errors.New("runtime.AnnotateContext error")
+				return
 			}
-			resp, md, err := request(rctx, inboundMarshaler, client, req, pathParams)
+		manager.Handler = func(rctx context.Context, conn *grpc.ClientConn) error{
+		var client = New{{$svc.GetName}}Client(conn)
+			resp, md, err := request_{{$svc.GetName}}_{{$m.GetName}}_{{$b.Index}}(rctx, inboundMarshaler, client, req, pathParams)
 			ctx = runtime.NewServerMetadataContext(ctx, md)
 			if err != nil {
 				runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-				return outboundMarshaler, nil, errors.New("runtime.NewServerMetadataContext error") 
+				return errors.New("runtime.NewServerMetadataContext error") 
 			}
-           return outboundMarshaler, resp, nil
-       }
-	{{range $m := $svc.Methods}}
-	{{range $b := $m.Bindings}}
-	mux.Handle({{$b.HTTPMethod | printf "%q"}}, pattern_{{$svc.GetName}}_{{$m.GetName}}_{{$b.Index}}, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		manager := client.NewManager(extend)
-		manager.Handler = func(conn *grpc.ClientConn) error{
-			outboundMarshaler, resp, err := commonFunc(w, req, pathParams, request_{{$svc.GetName}}_{{$m.GetName}}_{{$b.Index}}, conn)
 			if( err != nil ){
                 return err
 			}
@@ -473,7 +491,7 @@ func Register{{$svc.GetName}}{{$.RegisterFuncSuffix}}Client(ctx context.Context,
 			{{end}}
 			return nil
 		}
-		endpoint(ctx, manager)
+		endpoint(rctx, manager)
 	})
 	{{end}}
 	{{end}}

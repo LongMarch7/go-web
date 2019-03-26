@@ -53,16 +53,18 @@ func main() {
         bookServer.GetBookListHandler = plugin.NewPlugin(
             plugin.Prefix(*prefix),
             plugin.Logger(log.NewLogfmtLogger(os.Stderr)),
-            plugin.MethodName("BookList"),
+            plugin.MethodName("GetBookListEndpoint"),
             plugin.MakeEndpoint(makeGetBookListEndpoint))
 
         bookServer.GetBookInfoHandler = plugin.NewPlugin(
             plugin.Prefix(*prefix),
             plugin.Logger(log.NewLogfmtLogger(os.Stderr)),
-            plugin.MethodName("BookInfo"),
+            plugin.MethodName("GetBookInfoEndpoint"),
             plugin.MakeEndpoint(makeGetBookInfoEndpoint))
         return bookServer
     }
+    defer plugin.DestroyPlugin()
+
     server1 := server.NewServer(
             server.EtcdServer(*etcdServer),
             server.Prefix(*prefix),

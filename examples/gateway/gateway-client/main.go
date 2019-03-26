@@ -107,7 +107,7 @@ func reqFactory(instanceAddr string) (endpoint.Endpoint, io.Closer, error) {
         defer func() {
             conn.Close()
         }()
-        manage.Handler(conn)
+        manage.Handler(ctx, conn)
         return nil,nil
     },nil,nil
 }
