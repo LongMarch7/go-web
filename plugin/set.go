@@ -8,6 +8,8 @@ import (
 	"github.com/go-kit/kit/metrics/discard"
 	"github.com/go-kit/kit/ratelimit"
 	kitopentracing "github.com/go-kit/kit/tracing/opentracing"
+	"google.golang.org/grpc/grpclog"
+
 	//kitzipkin "github.com/go-kit/kit/tracing/zipkin"
 	"golang.org/x/time/rate"
 	"time"
@@ -71,11 +73,12 @@ func newPlugin(opts ...POption) *Plugin {
 		pluginEndpoint = newHystrixbyDefaultConfig(options)(pluginEndpoint)
 		zip , collector = GetZipkinTracer(options.prefix)
 		if zip == nil {
+			grpclog.Error("newPlugin ", options.prefix, "faild")
 			return s
 		}
 		pluginEndpoint = kitopentracing.TraceClient(zip, options.methodName)(pluginEndpoint)
 		//pluginEndpoint = kitzipkin.TraceEndpoint(options.zipkinTracer, options.methodName)(pluginEndpoint)
-		pluginEndpoint = loggerMid.LoggingMiddleware(log.With(options.logLogger, "method", options.methodName))(pluginEndpoint)
+		pluginEndpoint = loggerMid.GprcLoggingMiddleware(options.methodName)(pluginEndpoint)
 		pluginEndpoint = instrumentingMid.InstrumentingMiddleware(options.duration.With("method", options.methodName))(pluginEndpoint)
 		s.server = grpc_transport.NewServer(
 			pluginEndpoint,
@@ -134,6 +137,7 @@ func DestroyPlugin(){
 func NewZipkinTracer(name string) (stdopentracing.Tracer, zipkinot.Collector){
 	local_collector, err := zipkinot.NewHTTPCollector("http://127.0.0.1:9411/api/v1/spans")
 	if err != nil {
+		grpclog.Error("zipkinot.NewHTTPCollector faild")
 		return nil,nil
 	}
 	var (
@@ -144,6 +148,7 @@ func NewZipkinTracer(name string) (stdopentracing.Tracer, zipkinot.Collector){
 	recorder := zipkinot.NewRecorder(local_collector, debug, hostPort, serviceName)
 	newTracer, err := zipkinot.NewTracer(recorder)
 	if err != nil {
+		grpclog.Error("zipkinot.NewTracer faild")
 		return nil, local_collector
 	}
 	return newTracer,local_collector
@@ -154,4 +159,11 @@ func GetZipkinTracer(name string) (stdopentracing.Tracer, zipkinot.Collector){
 		zip, collector = NewZipkinTracer(name)
 	}
 	return zip, collector
+}
+
+func CloseCollector(){
+	if collector != nil {
+		collector.Close()
+		collector = nil
+	}
 }

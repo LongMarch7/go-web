@@ -2,6 +2,7 @@ package client
 
 import (
 	"errors"
+	"github.com/LongMarch7/go-web/plugin"
 	"github.com/LongMarch7/go-web/transport/pool"
 	"github.com/go-kit/kit/endpoint"
 	"google.golang.org/grpc"
@@ -73,6 +74,9 @@ func defaultReqFactory(instanceAddr string) (endpoint.Endpoint, io.Closer, error
 		return nil,err
 	}
 	endpointFunc = breakerMw(endpointFunc)
-	endpointFunc = kitopentracing.TraceClient(zip, "httpRequest")(endpointFunc)
+	zip , _ := plugin.GetZipkinTracer("gateway")
+	if zip != nil {
+		endpointFunc = kitopentracing.TraceClient(zip, "httpRequest")(endpointFunc)
+	}
 	return endpointFunc,nil,nil
 }

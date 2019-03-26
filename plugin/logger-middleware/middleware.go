@@ -2,6 +2,7 @@ package loggerMid
 
 import (
 	"context"
+	"google.golang.org/grpc/grpclog"
 	"time"
 
 	"github.com/go-kit/kit/endpoint"
@@ -17,6 +18,19 @@ func LoggingMiddleware(logger log.Logger) endpoint.Middleware {
 
 			defer func(begin time.Time) {
 				logger.Log("transport_error", err, "took", time.Since(begin))
+			}(time.Now())
+			return next(ctx, request)
+
+		}
+	}
+}
+
+func GprcLoggingMiddleware(method string) endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+
+			defer func(begin time.Time) {
+				grpclog.Info(method, "--", err, "--", time.Since(begin))
 			}(time.Now())
 			return next(ctx, request)
 

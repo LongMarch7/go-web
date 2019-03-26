@@ -2,7 +2,6 @@ package client
 
 import (
     "context"
-    "fmt"
     "github.com/LongMarch7/go-web/plugin"
     "github.com/afex/hystrix-go/hystrix"
     "github.com/go-kit/kit/circuitbreaker"
@@ -11,13 +10,12 @@ import (
     "github.com/go-kit/kit/sd/lb"
     "github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
     "google.golang.org/grpc"
+    "google.golang.org/grpc/grpclog"
     "time"
     "github.com/go-kit/kit/log"
     "github.com/go-kit/kit/endpoint"
     "github.com/grpc-ecosystem/grpc-gateway/runtime"
     "github.com/LongMarch7/go-web/transport/pool"
-    zipkinot "github.com/openzipkin-contrib/zipkin-go-opentracing"
-    stdopentracing "github.com/opentracing/opentracing-go"
 )
 
 type BaseGatewayManager struct {
@@ -37,7 +35,7 @@ type GrpcPoolManager struct{
 }
 type RegisterHandlerClient func( context.Context, *runtime.ServeMux, endpoint.Endpoint, interface{}) error
 type IClient interface {
-    init()
+    init() bool
     DeRegister()
 }
 
@@ -68,8 +66,6 @@ type Client struct {
     defaultEndpointer *sd.DefaultEndpointer
 }
 
-var collector zipkinot.Collector
-var zip stdopentracing.Tracer
 var breakerMw endpoint.Middleware
 type COption func(o *ClientOpt)
 func NewClient(opts ...COption) IClient {
@@ -111,10 +107,10 @@ func newOptions(opts ...COption) ClientOpt {
     return opt
 }
 
-func (c *Client)init(){
+func (c *Client)init() bool{
     if c.opts.mux == nil || c.opts.registerGrpc == nil{
-        fmt.Println("mux and grpc need set")
-        return
+        grpclog.Error("mux and grpc need set")
+        return false
     }
     commandName := c.opts.prefix + "hystrix"
     hystrix.ConfigureCommand(commandName, hystrix.CommandConfig{
@@ -133,13 +129,15 @@ func (c *Client)init(){
     //连接注册中心
     client, err := etcdv3.NewClient(c.opts.ctx, []string{c.opts.etcdServer}, options)
     if err != nil {
-        panic(err)
+        grpclog.Error("etcdv3.NewClient faild")
+        return false
     }
     logger := log.NewNopLogger()
     //创建实例管理器, 此管理器会Watch监听etc中prefix的目录变化更新缓存的服务实例数据
     instancer, err := etcdv3.NewInstancer(client, c.opts.prefix, logger, pool.Update)
     if err != nil {
-        panic(err)
+        grpclog.Error("etcdv3.NewInstancer faild")
+        return false
     }
     c.instancer = instancer
 
@@ -163,7 +161,7 @@ func (c *Client)init(){
     ctx, cancel := context.WithCancel(c.opts.ctx)
     c.cancel = cancel
 
-    zip , collector = plugin.NewZipkinTracer("gateway")
+    zip , _ := plugin.GetZipkinTracer("gateway")
     dialOpts := []grpc.DialOption{grpc.WithInsecure(), grpc.WithBlock()}
     if zip != nil {
         dialOpts = append(dialOpts,grpc.WithUnaryInterceptor(
@@ -178,8 +176,10 @@ func (c *Client)init(){
     }
     err = c.opts.registerGrpc(ctx, c.opts.mux, reqEndPoint, c.opts.manager)
     if err != nil {
-        panic(err)
+        grpclog.Error("registerGrpc faild")
+        return false
     }
+    return true
 }
 
 func (c *Client)DeRegister(){
@@ -188,7 +188,6 @@ func (c *Client)DeRegister(){
     c.defaultEndpointer = nil
     c.instancer.Stop()
     c.instancer = nil
-    collector.Close()
-    collector = nil
+    plugin.CloseCollector()
     pool.Destroy()
 }
