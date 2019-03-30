@@ -6,7 +6,7 @@ import (
     "google.golang.org/grpc/grpclog"
     "net/http"
     "github.com/LongMarch7/go-web/examples/zap-log/book"
-    "github.com/LongMarch7/go-web/transport/client"
+    "github.com/LongMarch7/go-web/runtime/etcd-client"
     "github.com/LongMarch7/go-web/plugin/forward-metadata"
     "github.com/LongMarch7/go-web/plugin"
     "os"

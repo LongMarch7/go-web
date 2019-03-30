@@ -7,7 +7,7 @@ import (
     "net/http"
     "github.com/grpc-ecosystem/grpc-gateway/runtime"
     "github.com/LongMarch7/go-web/examples/grpc-pool/book"
-    "github.com/LongMarch7/go-web/transport/client"
+    "github.com/LongMarch7/go-web/runtime/etcd-client"
     "os"
     "os/signal"
     "sync"

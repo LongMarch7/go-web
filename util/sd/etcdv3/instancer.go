@@ -4,7 +4,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/sd"
 	"github.com/LongMarch7/go-web/util/sd/internal/instance"
-	"github.com/LongMarch7/go-web/transport/pool"
+	"github.com/LongMarch7/go-web/runtime/pool"
 	"strconv"
 )
 

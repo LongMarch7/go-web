@@ -14,7 +14,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/LongMarch7/go-web/transport/client"
+	"github.com/LongMarch7/go-web/runtime/base"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -96,7 +96,7 @@ func RegisterBookServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 	//   }
 
 	mux.Handle("GET", pattern_BookService_GetBookInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		manager := client.NewManager(extend)
+		manager := base.NewManager(extend)
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -125,7 +125,7 @@ func RegisterBookServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux
 	})
 
 	mux.Handle("GET", pattern_BookService_GetBookList_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		manager := client.NewManager(extend)
+		manager := base.NewManager(extend)
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)

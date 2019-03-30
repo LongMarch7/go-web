@@ -3,11 +3,12 @@ package main
 import (
     "context"
     "flag"
-    "fmt"
+    "google.golang.org/grpc/grpclog"
     "net/http"
-    "github.com/grpc-ecosystem/grpc-gateway/runtime"
-    "github.com/LongMarch7/go-web/examples/rate-limit/book"
-    "github.com/LongMarch7/go-web/runtime/etcd-client"
+    "github.com/LongMarch7/go-web/examples/zap-log/book"
+    "github.com/LongMarch7/go-web/runtime/consul-client"
+    "github.com/LongMarch7/go-web/plugin/forward-metadata"
+    zapLog "github.com/LongMarch7/go-web/plugin/zap-log"
     "os"
     "os/signal"
     "sync"
@@ -22,8 +23,7 @@ Loop:
     for{
         select {
         case s := <-c:
-            fmt.Println()
-            fmt.Println("Producer | get", s)
+            grpclog.Info("Producer get", s)
             break Loop
         default:
         }
@@ -33,22 +33,24 @@ Loop:
 }
 
 func main() {
-    etcdServer := flag.String("e","127.0.0.1:2379","etcd service addr")
-    prefix := flag.String("p","/services/book/","prefix value")
+    etcdServer := flag.String("e","http://localhost:8500","etcd service addr")
+    prefix := flag.String("p","bookServer","prefix value")
     flag.Parse()
 
     ctx := context.Background()
-    mux := runtime.NewServeMux()
+    mux := forward_metadata.NewServeMux()
     defer func(){
         mux = nil
     }()
+
+    grpclog.SetLoggerV2(zapLog.NewDefaultLoggerConfig().NewLogger())
 
     c = make(chan os.Signal, 1)
     signal.Notify(c, os.Interrupt, os.Kill)
     wg.Add(1)
 
     client1 := client.NewClient(
-        client.EtcdServer(*etcdServer),
+        client.ConsulAddr(*etcdServer),
         client.Prefix(*prefix),
         client.Mux(mux),                                               //must set
         client.Ctx(ctx),

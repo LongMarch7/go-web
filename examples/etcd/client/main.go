@@ -14,7 +14,7 @@ import (
     "github.com/LongMarch7/go-web/examples/etcd/book"
     "io"
     "time"
-    "github.com/LongMarch7/go-web/transport/pool"
+    "github.com/LongMarch7/go-web/runtime/pool"
 )
 
 func main() {

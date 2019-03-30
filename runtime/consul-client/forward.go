@@ -2,19 +2,20 @@ package client
 
 import (
 	"errors"
-	"github.com/LongMarch7/go-web/plugin"
-	"github.com/LongMarch7/go-web/transport/pool"
+	"github.com/LongMarch7/go-web/runtime/pool"
+	"github.com/LongMarch7/go-web/runtime/base"
 	"github.com/go-kit/kit/endpoint"
 	"google.golang.org/grpc"
 	"io"
 	"time"
 	"context"
 	kitopentracing "github.com/go-kit/kit/tracing/opentracing"
+	pluginzipkin "github.com/LongMarch7/go-web/plugin/zipkin"
 )
 
 var InvalidateTimeout = time.Minute * 3
 
-func getConnectFromPool(addr string, p pool.Pool, opt ...grpc.DialOption) (*pool.ConnectManager, error){
+func getConnectFromPool(addr string, p *pool.Pool, opt ...grpc.DialOption) (*pool.ConnectManager, error){
 	cManager, ok, _ := p.Queue.Get()
 	if !ok {
 		time.Sleep(time.Microsecond * 100)
@@ -32,7 +33,7 @@ func getConnectFromPool(addr string, p pool.Pool, opt ...grpc.DialOption) (*pool
 	return cManager.(*pool.ConnectManager), nil
 }
 
-func putConnectToPool(manager *pool.ConnectManager, p pool.Pool) {
+func putConnectToPool(manager *pool.ConnectManager, p *pool.Pool) {
 	var ok = true
 
 	defer func(){
@@ -57,24 +58,24 @@ func putConnectToPool(manager *pool.ConnectManager, p pool.Pool) {
 
 func defaultReqFactory(instanceAddr string) (endpoint.Endpoint, io.Closer, error) {
 	endpointFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
-		base :=request.(*BaseGatewayManager)
+		base :=request.(*base.BaseGatewayManager)
 		poolManage,ok := pool.GetConnect(instanceAddr)
 		if ! ok {
-		return nil,errors.New("poolManage not found")
+			return nil,errors.New("poolManage not found")
 		}
 
-		cManager, err := getConnectFromPool(instanceAddr, poolManage, base.manager.(*GrpcPoolManager).Opt...)
+		cManager, err := getConnectFromPool(instanceAddr, poolManage, base.Manager.(*GrpcPoolManager).Opt...)
 		if err != nil {
-		return nil,err
+			return nil,err
 		}
 		defer func() {
-		putConnectToPool(cManager, poolManage)
+			putConnectToPool(cManager, poolManage)
 		}()
 		err = base.Handler(ctx, cManager.Conn)
 		return nil,err
 	}
 	endpointFunc = breakerMw(endpointFunc)
-	zip , _ := plugin.GetZipkinTracer("gateway")
+	zip , _ := pluginzipkin.GetZipkinTracer("gateway")
 	if zip != nil {
 		endpointFunc = kitopentracing.TraceClient(zip, "httpRequest")(endpointFunc)
 	}

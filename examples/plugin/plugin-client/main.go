@@ -6,7 +6,7 @@ import (
     "fmt"
     "net/http"
     "github.com/LongMarch7/go-web/examples/plugin/book"
-    "github.com/LongMarch7/go-web/transport/client"
+    "github.com/LongMarch7/go-web/runtime/etcd-client"
     "github.com/LongMarch7/go-web/plugin/forward-metadata"
     "os"
     "os/signal"

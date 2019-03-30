@@ -6,7 +6,7 @@ import (
     "fmt"
     "github.com/go-kit/kit/endpoint"
     "github.com/LongMarch7/go-web/examples/plugin/book"
-    "github.com/LongMarch7/go-web/transport/server"
+    "github.com/LongMarch7/go-web/runtime/etcd-server"
     "github.com/LongMarch7/go-web/plugin"
     "github.com/go-kit/kit/log"
     "os"

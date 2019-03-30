@@ -15,8 +15,8 @@ import (
     "github.com/go-kit/kit/endpoint"
     "github.com/grpc-ecosystem/grpc-gateway/runtime"
     "github.com/LongMarch7/go-web/examples/gateway/book"
-    "github.com/LongMarch7/go-web/transport/client"
-    "github.com/LongMarch7/go-web/transport/pool"
+    "github.com/LongMarch7/go-web/runtime/etcd-client"
+    "github.com/LongMarch7/go-web/runtime/pool"
 )
 
 //

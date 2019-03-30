@@ -8,13 +8,12 @@ import (
 	"github.com/go-kit/kit/metrics/discard"
 	"github.com/go-kit/kit/ratelimit"
 	kitopentracing "github.com/go-kit/kit/tracing/opentracing"
-	"google.golang.org/grpc/grpclog"
-
 	//kitzipkin "github.com/go-kit/kit/tracing/zipkin"
 	"golang.org/x/time/rate"
 	"time"
 	"github.com/LongMarch7/go-web/plugin/logger-middleware"
 	"github.com/LongMarch7/go-web/plugin/instrumenting-middleware"
+	zaplog "github.com/LongMarch7/go-web/plugin/zap-log"
 	"github.com/go-kit/kit/log"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	stdzipkin "github.com/openzipkin/zipkin-go"
@@ -22,8 +21,8 @@ import (
 	"github.com/openzipkin/zipkin-go"
 	grpc_transport "github.com/go-kit/kit/transport/grpc"
 	"context"
-	zipkinot "github.com/openzipkin-contrib/zipkin-go-opentracing"
-	"github.com/LongMarch7/go-web/transport/util"
+	"github.com/LongMarch7/go-web/runtime/util"
+	pluginzipkin "github.com/LongMarch7/go-web/plugin/zipkin"
 )
 
 type EnAndDeFun func(_ context.Context, req interface{}) (interface{}, error)
@@ -57,8 +56,6 @@ type POption func(o *PluginOpt)
 func NewPlugin(opts ...POption) *grpc_transport.Server {
 	return newPlugin(opts...).server
 }
-var collector zipkinot.Collector = nil
-var zip stdopentracing.Tracer = nil
 func newPlugin(opts ...POption) *Plugin {
 	options := newOptions(opts...)
 
@@ -71,9 +68,9 @@ func newPlugin(opts ...POption) *Plugin {
 		pluginEndpoint = options.makeEndpoint()
 		pluginEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(options.ratelimitInterval), options.ratelimitCap))(pluginEndpoint)
 		pluginEndpoint = newHystrixbyDefaultConfig(options)(pluginEndpoint)
-		zip , collector = GetZipkinTracer(options.prefix)
+		zip , _ := pluginzipkin.GetZipkinTracer(options.prefix)
 		if zip == nil {
-			grpclog.Error("newPlugin ", options.prefix, "faild")
+			options.logLogger.Log("newPlugin ", options.prefix, "faild")
 			return s
 		}
 		pluginEndpoint = kitopentracing.TraceClient(zip, options.methodName)(pluginEndpoint)
@@ -92,7 +89,7 @@ func newPlugin(opts ...POption) *Plugin {
 func newOptions(opts ...POption) PluginOpt {
 	zkt, _ := zipkin.NewTracer(nil, zipkin.WithNoopTracer(true))
 	opt := PluginOpt{
-		prefix: "/gateway/default",
+		prefix: "gatewayDefault",
 		methodName: "default",
 		ratelimitInterval: time.Millisecond * 10,
 		ratelimitCap: 100,
@@ -102,7 +99,7 @@ func newOptions(opts ...POption) PluginOpt {
 		hystrixSleepWindow: 5000,
 		hystrixMaxConcurrentRequests: 100,
 		hystrixRequestVolumeThreshold: 50,
-		logLogger: log.NewNopLogger(),
+		logLogger: zaplog.NewDefaultLogger(),
 		duration: discard.NewHistogram(),
 		otTracer: opentracing.GlobalTracer(),
 		zipkinTracer: zkt,
@@ -128,42 +125,4 @@ func newHystrixbyDefaultConfig(opt PluginOpt) endpoint.Middleware{
 	})
 
 	return circuitbreaker.Hystrix(commandName)
-}
-
-func DestroyPlugin(){
-	collector.Close()
-}
-
-func NewZipkinTracer(name string) (stdopentracing.Tracer, zipkinot.Collector){
-	local_collector, err := zipkinot.NewHTTPCollector("http://127.0.0.1:9411/api/v1/spans")
-	if err != nil {
-		grpclog.Error("zipkinot.NewHTTPCollector faild")
-		return nil,nil
-	}
-	var (
-		debug       = false
-		hostPort    = "localhost:0"
-		serviceName = name
-	)
-	recorder := zipkinot.NewRecorder(local_collector, debug, hostPort, serviceName)
-	newTracer, err := zipkinot.NewTracer(recorder)
-	if err != nil {
-		grpclog.Error("zipkinot.NewTracer faild")
-		return nil, local_collector
-	}
-	return newTracer,local_collector
-}
-
-func GetZipkinTracer(name string) (stdopentracing.Tracer, zipkinot.Collector){
-	if zip == nil || collector == nil{
-		zip, collector = NewZipkinTracer(name)
-	}
-	return zip, collector
-}
-
-func CloseCollector(){
-	if collector != nil {
-		collector.Close()
-		collector = nil
-	}
 }

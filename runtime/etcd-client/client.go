@@ -15,7 +15,7 @@ import (
     "github.com/go-kit/kit/log"
     "github.com/go-kit/kit/endpoint"
     "github.com/grpc-ecosystem/grpc-gateway/runtime"
-    "github.com/LongMarch7/go-web/transport/pool"
+    "github.com/LongMarch7/go-web/runtime/pool"
 )
 
 type BaseGatewayManager struct {

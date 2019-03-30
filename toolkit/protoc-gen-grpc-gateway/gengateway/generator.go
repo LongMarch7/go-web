@@ -51,7 +51,7 @@ func New(reg *descriptor.Registry, useRequestContext bool, registerFuncSuffix, p
 		"google.golang.org/grpc/grpclog",
 		"google.golang.org/grpc/status",
 		"github.com/go-kit/kit/endpoint",
-		"github.com/LongMarch7/go-web/transport/client",
+		"github.com/LongMarch7/go-web/runtime/base",
 	} {
 		pkg := descriptor.GoPackage{
 			Path: pkgpath,

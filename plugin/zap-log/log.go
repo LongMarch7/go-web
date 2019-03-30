@@ -1,10 +1,11 @@
-package plugin
+package zap_log
 
 import (
-    "github.com/LongMarch7/go-web/plugin/zap-log"
     "go.uber.org/zap"
     "go.uber.org/zap/zapcore"
+    "google.golang.org/grpc/grpclog"
     "gopkg.in/natefinch/lumberjack.v2"
+    "github.com/go-kit/kit/log"
 )
 
 //LoggerConfig config of logger
@@ -38,22 +39,26 @@ func convertLogLevel(levelStr string) (level zapcore.Level) {
 func NewDefaultLoggerConfig() *LoggerConfig {
     return &LoggerConfig{
         Level:      "debug",
-        Filename:   "./logs",
         MaxSize:    1,
         MaxAge:     1,
         MaxBackups: 10,
     }
 }
 
+var atom zap.AtomicLevel
+
 // 日志时间格式
 // func timeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 // 	enc.AppendString(t.Format("2006-01-02 15:04:05"))
 // }
 //NewLogger create logger by config
-func (lconf *LoggerConfig) NewLogger() *zap_log.ZapLogger {
+func (lconf *LoggerConfig) NewLogger() *ZapLogger {
     if lconf.Filename == "" {
-        logger, _ := zap.NewProduction(zap.AddCallerSkip(2))
-        return zap_log.NewZapLogger(logger)
+        config := zap.NewProductionConfig()
+        config.DisableCaller = true
+        logger, _ := config.Build()
+        //zap.NewProduction(zap.AddCallerSkip(2))
+        return NewZapLogger(logger)
     }
 
     enCfg := zap.NewProductionEncoderConfig()
@@ -74,9 +79,27 @@ func (lconf *LoggerConfig) NewLogger() *zap_log.ZapLogger {
         LocalTime:  lconf.LocalTime,
     })
 
-    newCore := zapcore.NewCore(encoder, zapWriter, zap.NewAtomicLevelAt(convertLogLevel(lconf.Level)))
+    atom = zap.NewAtomicLevel()
+    atom.SetLevel(convertLogLevel(lconf.Level))
+    newCore := zapcore.NewCore(encoder, zapWriter, atom)
     opts := []zap.Option{zap.ErrorOutput(zapWriter)}
-    opts = append(opts, zap.AddCaller(), zap.AddCallerSkip(2))
+    //opts = append(opts, zap.AddCaller(), zap.AddCallerSkip(2))
     logger := zap.New(newCore, opts...)
-    return zap_log.NewZapLogger(logger)
+    return NewZapLogger(logger)
 }
+
+func AutoSetLogLevel(level  string){
+    atom.SetLevel(convertLogLevel(level))
+}
+
+type DefaultLogger struct{}
+
+// NewNopLogger returns a logger that doesn't do anything.
+func NewDefaultLogger() log.Logger { return DefaultLogger{} }
+
+func (DefaultLogger) Log(keyvals ...interface{}) error {
+    grpclog.Error(keyvals)
+    return nil
+}
+
+

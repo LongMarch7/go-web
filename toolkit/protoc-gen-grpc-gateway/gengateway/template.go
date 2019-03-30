@@ -456,7 +456,7 @@ func Register{{$svc.GetName}}{{$.RegisterFuncSuffix}}Client(ctx context.Context,
 	{{range $m := $svc.Methods}}
 	{{range $b := $m.Bindings}}
 	mux.Handle({{$b.HTTPMethod | printf "%q"}}, pattern_{{$svc.GetName}}_{{$m.GetName}}_{{$b.Index}}, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		manager := client.NewManager(extend)
+		manager := base.NewManager(extend)
 		{{- if $UseRequestContext }}
 			ctx, cancel := context.WithCancel(req.Context())
 		{{- else -}}
