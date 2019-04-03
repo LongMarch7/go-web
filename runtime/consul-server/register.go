@@ -17,6 +17,7 @@ type RegisterConfig struct{
     advertiseAddress string
     advertisePort string
     logger log.Logger
+    maxThreadCount string
 }
 
 func Register(config RegisterConfig) (registar sd.Registrar) {
@@ -32,11 +33,13 @@ func Register(config RegisterConfig) (registar sd.Registrar) {
         client = consulsd.NewClient(consulClient)
     }
 
-    check := api.AgentServiceCheck{
-        HTTP:     "http://" + config.advertiseAddress + ":" + config.advertisePort + "/health",
-        Interval: "10s",
-        Timeout:  "1s",
-        Notes:    "Basic health checks",
+    check := api.AgentServiceChecks{
+        &api.AgentServiceCheck{
+            HTTP:     "http://" + config.advertiseAddress + ":" + config.advertisePort + "/health",
+            Interval: "10s",
+            Timeout:  "1s",
+            Notes:    "Basic health checks",
+        },
     }
 
     asr := api.AgentServiceRegistration{
@@ -44,8 +47,10 @@ func Register(config RegisterConfig) (registar sd.Registrar) {
         Name:    config.prefix,
         Address: config.service,
         Port:    config.port,
-        Tags:    []string{"MicroServer", config.prefix},
-        Check:   &check,
+        Tags:    []string{config.prefix,
+                            "server="+ config.advertiseAddress + ":" + config.advertisePort,
+                            "maxThreadCount=" + config.maxThreadCount},
+        Checks:   check,
     }
     registar = consulsd.NewRegistrar(client, &asr,  config.logger)
     return

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/LongMarch7/go-web/runtime/pool"
+	"strconv"
+	"strings"
 	"time"
 	consul "github.com/hashicorp/consul/api"
 	"github.com/go-kit/kit/log"
@@ -117,8 +119,8 @@ func (s *Instancer) getInstances(lastIndex uint64, interruptc chan struct{}) ([]
 		if len(s.tags) > 1 {
 			entries = filterEntries(entries, s.tags[1:]...)
 		}
-		instances := makeInstances(entries)
-		s.updatePool( s.service, instances, 0 )
+		instances, count := makeInstances(entries)
+		s.updatePool( s.service, instances, uint32(count))
 		resc <- response{
 			instances: instances,
 			index:     meta.LastIndex,
@@ -166,14 +168,18 @@ ENTRIES:
 	return es
 }
 
-func makeInstances(entries []*consul.ServiceEntry) []string {
+func makeInstances(entries []*consul.ServiceEntry) ([]string, int) {
 	instances := make([]string, len(entries))
+	var count = 64
 	for i, entry := range entries {
 		addr := entry.Node.Address
 		if entry.Service.Address != "" {
 			addr = entry.Service.Address
 		}
 		instances[i] = fmt.Sprintf("%s:%d", addr, entry.Service.Port)
+		countTag := entry.Service.Tags[2]
+		countTag = strings.Replace(countTag, "maxThreadCount=", "", -1)
+		count,_ = strconv.Atoi(countTag)
 	}
-	return instances
+	return instances, count
 }

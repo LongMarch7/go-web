@@ -12,7 +12,7 @@ import (
 	"golang.org/x/time/rate"
 	"time"
 	"github.com/LongMarch7/go-web/plugin/logger-middleware"
-	"github.com/LongMarch7/go-web/plugin/instrumenting-middleware"
+	"github.com/LongMarch7/go-web/plugin/prometheus"
 	zaplog "github.com/LongMarch7/go-web/plugin/zap-log"
 	"github.com/go-kit/kit/log"
 	stdopentracing "github.com/opentracing/opentracing-go"
@@ -76,7 +76,30 @@ func newPlugin(opts ...POption) *Plugin {
 		pluginEndpoint = kitopentracing.TraceClient(zip, options.methodName)(pluginEndpoint)
 		//pluginEndpoint = kitzipkin.TraceEndpoint(options.zipkinTracer, options.methodName)(pluginEndpoint)
 		pluginEndpoint = loggerMid.GprcLoggingMiddleware(options.methodName)(pluginEndpoint)
-		pluginEndpoint = instrumentingMid.InstrumentingMiddleware(options.duration.With("method", options.methodName))(pluginEndpoint)
+		//pluginEndpoint = instrumentingMid.InstrumentingMiddleware(options.duration.With("method", options.methodName))(pluginEndpoint)
+		fieldKeys := []string{"method"}
+		config := []prometheus.PrometheusConfig{
+			prometheus.PrometheusConfig{
+				Namespace: "micro_service",
+				Subsystem: options.prefix,
+				Name: options.methodName,
+				Help: "Number of requests received.",
+				Type: prometheus.Counter_TYPE,
+				FieldKeys: fieldKeys,
+			},
+			prometheus.PrometheusConfig{
+				Namespace: "micro_service",
+				Subsystem: options.prefix,
+				Name: options.methodName,
+				Help: "Total duration of requests in microseconds. ",
+				Type: prometheus.Histogram_TYPE,
+				FieldKeys: fieldKeys,
+			},
+		}
+		lvs := []string{"method", options.methodName}
+		pro := prometheus.NewPrometheus(config)
+		pluginEndpoint = pro.PrometheusCounterMiddleware(options.methodName, lvs, 1)(pluginEndpoint)
+		pluginEndpoint = pro.PrometheusHistogramMiddleware(options.methodName, lvs)(pluginEndpoint)
 		s.server = grpc_transport.NewServer(
 			pluginEndpoint,
 			options.decodeFun,

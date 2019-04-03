@@ -129,7 +129,7 @@ func (c *Client)init() bool{
     }
 
     //创建实例管理器, 此管理器会Watch监听etc中prefix的目录变化更新缓存的服务实例数据
-    consulTag := []string{"MicroServer", c.opts.prefix}
+    consulTag := []string{c.opts.prefix}
     pool.Init()
     instancer := consul.NewInstancer(client, c.opts.logger, c.opts.prefix, consulTag, c.opts.passingOnly, pool.Update)//pool.Update
 

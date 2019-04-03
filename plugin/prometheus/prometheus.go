@@ -39,13 +39,17 @@ type PrometheusConfig struct{
 func NewPrometheus(config []PrometheusConfig) PrometheusFunc{
 
     var server prometheusServer
+    server.Counter = make(map[string]*kitprometheus.Counter)
+    server.Summary = make(map[string]*kitprometheus.Summary)
+    server.Histogram = make(map[string]*kitprometheus.Histogram)
+    server.Gauge = make(map[string]*kitprometheus.Gauge)
     for _, value := range config{
         switch value.Type{
         case Counter_TYPE:
             requestCount := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
                 Namespace: value.Namespace,
                 Subsystem: value.Subsystem,
-                Name:      value.Name,
+                Name:      value.Name + "_Counter",
                 Help:      value.Help,
             }, value.FieldKeys)
             server.Counter[value.Name] = requestCount
@@ -53,7 +57,7 @@ func NewPrometheus(config []PrometheusConfig) PrometheusFunc{
             requestSummary := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
                 Namespace: value.Namespace,
                 Subsystem: value.Subsystem,
-                Name:      value.Name,
+                Name:      value.Name + "_Summary",
                 Help:      value.Help,
             }, value.FieldKeys)
             server.Summary[value.Name] = requestSummary
@@ -61,7 +65,7 @@ func NewPrometheus(config []PrometheusConfig) PrometheusFunc{
             requestGauge := kitprometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
                 Namespace: value.Namespace,
                 Subsystem: value.Subsystem,
-                Name:      value.Name,
+                Name:      value.Name + "_Gauge",
                 Help:      value.Help,
             }, value.FieldKeys)
             server.Gauge[value.Name] = requestGauge
@@ -69,7 +73,7 @@ func NewPrometheus(config []PrometheusConfig) PrometheusFunc{
             requestHistogram := kitprometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
                 Namespace: value.Namespace,
                 Subsystem: value.Subsystem,
-                Name:      value.Name,
+                Name:      value.Name + "_Histogram",
                 Help:      value.Help,
                 Buckets: value.Buckets,
             }, value.FieldKeys)

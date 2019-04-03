@@ -73,7 +73,7 @@ func newOptions(opts ...SOption) ServerOpt {
         ctx: context.Background(),
         dialTimeout: time.Second * 3,
         dialKeepAlive: time.Second * 3,
-        maxThreadCount: "1024*1024",
+        maxThreadCount: "1024",
         netType: "tcp",
         registerServerFunc: nil,
         serviceStruct: nil,
@@ -104,6 +104,7 @@ func (s *Server)init(){
         advertiseAddress: s.opts.advertiseAddress,
         advertisePort: s.opts.advertisePort,
         logger: s.opts.logger,
+        maxThreadCount: s.opts.maxThreadCount,
     }
     registrar := Register(config)
 
