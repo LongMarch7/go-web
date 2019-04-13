@@ -55,12 +55,12 @@ func main() {
         bookServer.GetBookListHandler = plugin.NewPlugin(
             plugin.Prefix(*prefix),
             plugin.MethodName("GetBookList"),
-            plugin.MakeEndpoint(makeGetBookListEndpoint))
+            plugin.MakeEndpoint(makeGetBookListEndpoint()))
 
         bookServer.GetBookInfoHandler = plugin.NewPlugin(
             plugin.Prefix(*prefix),
             plugin.MethodName("GetBookInfo"),
-            plugin.MakeEndpoint(makeGetBookInfoEndpoint))
+            plugin.MakeEndpoint(makeGetBookInfoEndpoint()))
         return bookServer
     }
 

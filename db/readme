@@ -1,0 +1,7 @@
+[build]
+go get github.com/go-xorm/xorm
+go get github.com/go-xorm/cmd/xorm
+
+[create struct]
+cd  src/github.com/LongMarch7/go-web/db/object
+gorm reverse mysql root:123456@tcp\(localhost:13306\)/test?charset=utf8 ../../toolkit/gorm/gorm/templates/goxorm

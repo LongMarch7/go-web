@@ -94,9 +94,9 @@ func ZipkinTracer(zipkinTracer  *stdzipkin.Tracer) POption {
 	}
 }
 
-func MakeEndpoint(makeEndpoint  func() endpoint.Endpoint) POption {
+func MakeEndpoint(endpoint  endpoint.Endpoint) POption {
 	return func(o *PluginOpt) {
-		o.makeEndpoint = makeEndpoint
+		o.Endpoint = endpoint
 	}
 }
 

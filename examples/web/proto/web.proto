@@ -1,0 +1,18 @@
+syntax = "proto3";
+package proto;        // 指定生成的 user.pb.go 的包名，防止命名冲突
+
+import "google/api/annotations.proto";
+
+
+message Message {
+    string text = 1;
+}
+
+// 定义 获取书详情  和 书列表服务   入参出参分别为上面所定义的结构
+service BookService {
+    rpc GetBookInfo (Message) returns (Message) {
+        option (google.api.http) = {
+             get: "/application/index"
+         };
+    }
+}

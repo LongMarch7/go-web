@@ -42,7 +42,7 @@ type PluginOpt struct {
 	duration                      metrics.Histogram
 	otTracer                      stdopentracing.Tracer
 	zipkinTracer                  *stdzipkin.Tracer
-	makeEndpoint                  func() endpoint.Endpoint
+	Endpoint                      endpoint.Endpoint
 	decodeFun                     grpc_transport.DecodeRequestFunc
 	encodeFun                     grpc_transport.EncodeResponseFunc
 }
@@ -64,8 +64,8 @@ func newPlugin(opts ...POption) *Plugin {
 		server: nil,
 	}
 	var pluginEndpoint endpoint.Endpoint
-	if options.makeEndpoint != nil {
-		pluginEndpoint = options.makeEndpoint()
+	if options.Endpoint != nil {
+		pluginEndpoint = options.Endpoint
 		pluginEndpoint = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Every(options.ratelimitInterval), options.ratelimitCap))(pluginEndpoint)
 		pluginEndpoint = newHystrixbyDefaultConfig(options)(pluginEndpoint)
 		zip , _ := pluginzipkin.GetZipkinTracer(options.prefix)
@@ -126,7 +126,7 @@ func newOptions(opts ...POption) PluginOpt {
 		duration: discard.NewHistogram(),
 		otTracer: opentracing.GlobalTracer(),
 		zipkinTracer: zkt,
-		makeEndpoint: nil,
+		Endpoint: nil,
 		decodeFun: util.DefaultdecodeRequest,
 		encodeFun: util.DefaultencodeResponse,
 	}

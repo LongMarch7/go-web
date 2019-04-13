@@ -10,6 +10,7 @@ import (
     "github.com/go-kit/kit/log"
     "google.golang.org/grpc/grpclog"
     "os"
+    zapLog "github.com/LongMarch7/go-web/plugin/zap-log"
 )
 
 //创建bookList的EndPoint
@@ -48,7 +49,7 @@ func main() {
     flag.Parse()
     ctx := context.Background()
 
-    grpclog.SetLoggerV2(plugin.NewDefaultLoggerConfig().NewLogger())
+    grpclog.SetLoggerV2(zapLog.NewDefaultLoggerConfig().NewLogger())
     grpclog.Info("gateway star")
 
     Init := func() interface {}{
@@ -57,16 +58,15 @@ func main() {
             plugin.Prefix(*prefix),
             plugin.Logger(log.NewLogfmtLogger(os.Stderr)),
             plugin.MethodName("GetBookList"),
-            plugin.MakeEndpoint(makeGetBookListEndpoint))
+            plugin.MakeEndpoint(makeGetBookListEndpoint()))
 
         bookServer.GetBookInfoHandler = plugin.NewPlugin(
             plugin.Prefix(*prefix),
             plugin.Logger(log.NewLogfmtLogger(os.Stderr)),
             plugin.MethodName("GetBookInfo"),
-            plugin.MakeEndpoint(makeGetBookInfoEndpoint))
+            plugin.MakeEndpoint(makeGetBookInfoEndpoint()))
         return bookServer
     }
-    defer plugin.DestroyPlugin()
 
     server1 := server.NewServer(
             server.EtcdServer(*etcdServer),

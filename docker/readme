@@ -4,7 +4,7 @@
 
 ### Running Prometheus and Grafana and Consul and zipkin
      cd src/github.com/LongMarch7/go-web/docker
-     docker-compose -f docker-compose-prometheus-grafana-consul.yml up -d
+     docker-compose -f docker-compose-prometheus-grafana-zipkin.yml up -d
 
 
 ### Runnig zipkin
@@ -12,3 +12,13 @@
 
 #memcached
  docker run -d -p 11211:11211  memcached
+
+ #mariadb -v "$PWD/data/mariadb:/var/lib/mysql"
+ docker run -d -e MYSQL_ROOT_PASSWORD=123456  -p 13306:3306 mariadb:10.0.33
+
+
+ #close all
+ docker stop $(docker ps -a -q)
+
+ #consul remove inavalid server
+  curl -v -X PUT "http://127.0.0.1:8500/v1/agent/service/deregister/PORT50232"

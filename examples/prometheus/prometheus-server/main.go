@@ -4,7 +4,7 @@ import (
     "context"
     "flag"
     "github.com/go-kit/kit/endpoint"
-    "github.com/LongMarch7/go-web/examples/zap-log/book"
+    "github.com/LongMarch7/go-web/examples/prometheus/book"
     "github.com/LongMarch7/go-web/runtime/consul-server"
     "github.com/LongMarch7/go-web/plugin"
     "google.golang.org/grpc/grpclog"
@@ -55,12 +55,12 @@ func main() {
         bookServer.GetBookListHandler = plugin.NewPlugin(
             plugin.Prefix(*prefix),
             plugin.MethodName("GetBookList"),
-            plugin.MakeEndpoint(makeGetBookListEndpoint))
+            plugin.MakeEndpoint(makeGetBookListEndpoint()))
 
         bookServer.GetBookInfoHandler = plugin.NewPlugin(
             plugin.Prefix(*prefix),
             plugin.MethodName("GetBookInfo"),
-            plugin.MakeEndpoint(makeGetBookInfoEndpoint))
+            plugin.MakeEndpoint(makeGetBookInfoEndpoint()))
         return bookServer
     }
 

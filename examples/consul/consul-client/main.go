@@ -5,7 +5,7 @@ import (
     "flag"
     "google.golang.org/grpc/grpclog"
     "net/http"
-    "github.com/LongMarch7/go-web/examples/zap-log/book"
+    "github.com/LongMarch7/go-web/examples/consul/book"
     "github.com/LongMarch7/go-web/runtime/consul-client"
     "github.com/LongMarch7/go-web/plugin/forward-metadata"
     zapLog "github.com/LongMarch7/go-web/plugin/zap-log"

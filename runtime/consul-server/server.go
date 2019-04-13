@@ -1,7 +1,6 @@
 package server
 
 import (
-    "github.com/go-kit/kit/sd"
     "github.com/grpc-ecosystem/grpc-opentracing/go/otgrpc"
     "google.golang.org/grpc"
     "google.golang.org/grpc/grpclog"
@@ -25,6 +24,7 @@ var wg sync.WaitGroup
 
 type IServer interface {
     init()
+    AddPlugin(plugin interface{})
     Run()
 }
 
@@ -48,7 +48,7 @@ type ServerOpt struct {
 type Server struct {
     opts                  ServerOpt
     listenConnector       net.Listener
-    registrar             sd.Registrar
+    port                  int
 }
 
 type SOption func(o *ServerOpt)
@@ -95,21 +95,12 @@ func (s *Server)init(){
 
     port := ls.Addr().(*net.TCPAddr).Port
     s.listenConnector = ls
-    // 创建注册器
-    config := RegisterConfig{
-        consulAddress: s.opts.consulAddr,
-        prefix: s.opts.prefix,
-        service: s.opts.serverAddr,
-        port: port,
-        advertiseAddress: s.opts.advertiseAddress,
-        advertisePort: s.opts.advertisePort,
-        logger: s.opts.logger,
-        maxThreadCount: s.opts.maxThreadCount,
-    }
-    registrar := Register(config)
+    s.port = port
+    grpclog.Info("listen port ", port)
+}
 
-    // 注册器启动注册
-    s.registrar = registrar
+func (s *Server)AddPlugin(plugin interface{}){
+    s.opts.serviceStruct = plugin
 }
 
 func (s *Server)Run(){
@@ -120,6 +111,20 @@ func (s *Server)Run(){
     c = make(chan os.Signal, 1)
     signal.Notify(c, os.Interrupt, os.Kill)
     wg.Add(1)
+
+    // 创建注册器
+    config := RegisterConfig{
+        consulAddress: s.opts.consulAddr,
+        prefix: s.opts.prefix,
+        service: s.opts.serverAddr,
+        port: s.port,
+        advertiseAddress: s.opts.advertiseAddress,
+        advertisePort: s.opts.advertisePort,
+        logger: log.NewNopLogger(),
+        maxThreadCount: s.opts.maxThreadCount,
+    }
+    registrar := Register(config)
+
 
     zip, _ := pluginzipkin.GetZipkinTracer(s.opts.prefix + "gateway_grpc_server")
     var opts []grpc.ServerOption
@@ -132,11 +137,12 @@ func (s *Server)Run(){
     }
     gs := grpc.NewServer(opts...)
 
-    s.registrar.Register()
+    registrar.Register()
     defer func(){
         pluginzipkin.CloseZipkinCollector()
-        s.registrar.Deregister()
-        s.registrar = nil
+        registrar.Deregister()
+        grpclog.Info("exit....")
+        registrar = nil
         gs.Stop()
     }()
     go func() {
